@@ -27,7 +27,7 @@ package POE::Filter::XML::Parser;
 use strict;
 use warnings;
 
-our $VERSION = '0.1.1';
+our $VERSION = '0.2.1';
 
 sub new
 {

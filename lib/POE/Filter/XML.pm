@@ -4,7 +4,7 @@ use strict;
 my $parser;
 my $parse_method;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.1';
 
 BEGIN
 {
@@ -73,7 +73,7 @@ sub new()
 		
 			'callback'	=> $callback,
 			'handler'	=> $handler,
-			'buffer'	=> [],
+			'buffer'	=> [$buffer],
 			'start'		=> $start,
 			'end'		=> $end,
 			'char'		=> $char,
@@ -108,16 +108,6 @@ sub new()
 	}
 
 	bless($self, $class);
-	eval
-	{	
-		$self->{'parser'}->$parse_method($buffer);
-	};
-
-	if($@)
-	{
-		warn $@;
-		return undef;
-	}
 	return $self;
 }
 
@@ -205,22 +195,8 @@ sub get()
 {
 	my($self, $raw)	= @_;
 
-	foreach my $line (@$raw)
-	{
-		eval
-		{
-			$line =~ s/\x{d}\x{a}//go;
-			chomp($line);
-			$self->{'parser'}->$parse_method($line);
-		};
-		
-		if($@)
-		{
-			warn $@;
-			&{ $self->{'callback'} }($@);
-		}
-			
-	}
+	push (@{$self->{'buffer'}}, @$raw) if (defined $raw);
+	$self->do_parse;
 	if($self->{'handler'}->finished_nodes())
 	{
 		my $return = [];
@@ -238,18 +214,58 @@ sub get()
 	}
 }
 
+sub get_one_start {
+	my ($self, $raw) = @_;
+	if (defined $raw) {
+		foreach my $raw_data (@$raw) {
+			push (@{$self->{'buffer'}}, split (/(?:\015?\012|\012\015?)/s, $raw_data));
+		}
+	}
+}
+
 sub get_one()
 {
-	my ($self, $raw) = @_;
-	my $packets = $self->get($raw);
-	push @{$self->{'buffer'}}, @$packets;
-	my $packet = shift(@{$self->{'buffer'}});
-	my $return = [];
-	push(@$return, $packet);
-	
-	return($return);
+	my ($self) = @_;
+
+	$self->do_parse(1);
+
+	if($self->{'handler'}->finished_nodes())
+	{
+		my $node = $self->{'handler'}->get_node();
+		$node = $self->{'meta'}->infilter(\$node);
+		return [$node];
+
+	} else {
+
+		return [];
+	}
 }
 	
+sub do_parse {
+	my ($self, $lazy) = @_;
+
+	unless($self->{'handler'}->finished_nodes())
+	{
+		while (my $line = shift @{$self->{'buffer'}})
+		{
+			eval
+			{
+				$line =~ s/\x{d}\x{a}//go;
+				chomp($line);
+				$self->{'parser'}->$parse_method($line);
+			};
+		
+			if($@)
+			{
+				warn $@;
+				&{ $self->{'callback'} }($@);
+			}
+
+			last if($lazy and $self->{'handler'}->finished_nodes());
+			
+		}
+	}
+}
 
 sub put {
 	my($self, $nodes) = @_;

@@ -10,7 +10,7 @@ use constant id => 4;
 use constant start => 5;
 use constant end => 6;
 
-our $VERSION = '0.1.2';
+our $VERSION = '0.2.1';
 
 my $id = 0;
 
@@ -445,6 +445,30 @@ themselves.
 new() accepts as arguments the (1) name of the actual tag (ie. 'iq'), (2) an 
 arrayref of attribute pairs for insert_attrs(). All of the arguments are 
 optional and can be specified through other methods at a later time.
+
+=item stream_start()
+
+stream_start() called without arguments returns a bool on whether or not the
+node in question is the top level document tag. In an xml stream such as
+XMPP this is the <stream:stream> tag. Called with a single argument (a bool)
+sets whether this tag should be considered a stream starter.
+
+This method is significant because it determines the behavior of the to_str()
+method. If stream_start() returns bool true, the tag will not be terminated.
+(ie. <iq to='test' from='test'> instead of <iq to='test' from='test'B</>>)
+
+=item stream_end()
+
+stream_end() called without arguments returns a bool on whether or not the
+node in question is the closing document tag in a stream. In an xml stream
+such as XMPP, this is the </stream:stream>. Called with a single argument (a 
+bool) sets whether this tag should be considered a stream ender.
+
+This method is significant because it determines the behavior of the to_str()
+method. If stream_end() returns bool true, then any data or attributes or
+children of the node is ignored and an ending tag is constructed. 
+
+(ie. </iq> instead of <iq to='test' from='test'><child/></iq>)
 
 =item clone()
 
