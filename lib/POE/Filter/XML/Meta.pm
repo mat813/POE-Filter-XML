@@ -1,10 +1,6 @@
-#!/usr/bin/perl
-
+package POE::Filter::XML::Meta;
 use strict;
 use warnings;
-
-package POE::Filter::XML::Meta;
-use PXR::Node;
 
 our $VERSION = '0.1';
 
@@ -35,7 +31,7 @@ sub _default()
 
 	if($outbound)
 	{
-		if(ref($$node) eq 'PXR::Node')
+		if(ref($$node) eq 'POE::Filter::XML::Node')
 		{
 			return ${$node}->to_str();
 

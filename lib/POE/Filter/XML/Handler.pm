@@ -1,29 +1,36 @@
 package POE::Filter::XML::Handler;
+use POE::Preprocessor;
+const XNode POE::Filter::XML::Node
 
 use strict;
 use warnings;
-use PXR::Node;
+use POE::Filter::XML::Node;
 
 our $VERSION = '0.1';
 
 sub new()
 {
-	my $class = shift;
+	my ($class) = @_;
 	my $self = {
 		
-		depth		=> 0,
-		currnode	=> undef,
-		streamerror => undef,
-		finished	=> []
+		'depth'		=> -1,
+		'currnode'	=> undef,
+		'finished'	=> [],
+		'parents'	=> [],
 	};
 
 	bless $self, $class;
 	return $self;
 }
 
-sub DESTROY()
+sub reset()
 {
 	my $self = shift;
+
+	$self->{'currnode'} = undef;
+	$self->{'finished'} = [];
+	$self->{'parents'} = [];
+	$self->{'depth'} = -1;
 }
 
 sub startDocument() { }
@@ -32,26 +39,32 @@ sub endDocument() { }
 sub startElement() 
 {
 	my ($self, $expat, $tag, %attr ) = @_;
-
-	if( $tag eq "stream:stream" ) 
+	
+	if($self->{'depth'} == -1) 
 	{
+		#start of a document: make and return the tag
+		my $start = XNode->new($tag)->stream_start(1);
+		$start->attr($_, $attr{$_}) foreach keys %attr;
+		push(@{$self->{'finished'}}, $start);
+		$self->{'depth'} = 0;
 		return;
 
 	} else {
 		$self->{'depth'} += 1;
 
 		# Top level fragment
-		if( $self->{'depth'} == 1 ) 
+		if($self->{'depth'} == 1)
 		{
-			# Not an error = create the node
-			$self->{'currnode'} = PXR::Node->new( $tag );
-			$self->{'currnode'}->attr( $_, $attr{$_} ) foreach keys %attr;
+			$self->{'currnode'} = XNode->new($tag);
+			$self->{'currnode'}->attr($_, $attr{$_}) foreach keys %attr;
+			push(@{$self->{'parents'}}, $self->{'currnode'});
 		
 		} else {
-		
+		    
 			# Some node within a fragment
-			my $kid = $self->{'currnode'}->insert_tag( $tag );
-			$kid->attr( $_, $attr{$_} ) foreach keys %attr;
+			my $kid = $self->{'currnode'}->insert_tag($tag);
+			$kid->attr($_, $attr{$_}) foreach keys %attr;
+			push(@{$self->{'parents'}}, $self->{'currnode'});
 			$self->{'currnode'} = $kid;
 		}
 	}
@@ -60,28 +73,33 @@ sub startElement()
 sub endElement()
 {
 	my ($self, $expat, $tag ) = @_;
-
-	return [] if $self->{'stream:error'};
-
-	if( $self->{'depth'} == 1 )
+	
+	if($self->{'depth'} == 0)
+	{
+		# gracefully deal with ending document tag
+		# and maybe send it off? 
+		# could be used to signal reset()?
+		my $end = XNode->new($tag)->stream_end(1);
+		push(@{$self->{'finished'}}, $end);
+	} 
+	elsif($self->{'depth'} == 1)
 	{
 		push(@{$self->{'finished'}}, $self->{'currnode'});
 		delete $self->{'currnode'};
-		--$self->{'depth'};
-		
-	} else {
+		pop(@{$self->{'parents'}});
 	
-		$self->{'currnode'} = $self->{'currnode'}->parent();
-		--$self->{'depth'};
+	} else {
+		$self->{'currnode'} = pop(@{$self->{'parents'}});
 	}
 
+	--$self->{'depth'};
 }
 
 sub characters() 
 {
 	my($self, $expat, $data ) = @_;
-
-	if($self->{'currnode'}->name() eq 'stream:stream')
+	
+	if($self->{'depth'} == 0)
 	{
 		return;
 	}
@@ -100,14 +118,7 @@ sub get_node()
 sub finished_nodes()
 {
 	my $self = shift;
-	if(scalar(@{$self->{'finished'}}))
-	{
-		return 1;
-
-	} else {
-	
-		return 0;
-	}
+	return scalar(@{$self->{'finished'}})
 }
 
 1;
