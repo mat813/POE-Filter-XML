@@ -4,7 +4,7 @@ use strict;
 my $parser;
 my $parse_method;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 BEGIN
 {
@@ -191,30 +191,8 @@ sub reset()
 	delete $self->{'buffer'};
 }
 
-sub get() 
+sub get_one_start()
 {
-	my($self, $raw)	= @_;
-
-	push (@{$self->{'buffer'}}, @$raw) if (defined $raw);
-	$self->do_parse;
-	if($self->{'handler'}->finished_nodes())
-	{
-		my $return = [];
-		while(my $node = $self->{'handler'}->get_node())
-		{
-			$node = $self->{'meta'}->infilter(\$node);
-			push @$return, $node;
-		}
-
-		return($return);
-		
-	} else {
-	
-		return [];
-	}
-}
-
-sub get_one_start {
 	my ($self, $raw) = @_;
 	if (defined $raw) {
 		foreach my $raw_data (@$raw) {
@@ -227,47 +205,48 @@ sub get_one()
 {
 	my ($self) = @_;
 
-	$self->do_parse(1);
-
 	if($self->{'handler'}->finished_nodes())
 	{
 		my $node = $self->{'handler'}->get_node();
 		$node = $self->{'meta'}->infilter(\$node);
 		return [$node];
-
-	} else {
-
-		return [];
-	}
-}
 	
-sub do_parse {
-	my ($self, $lazy) = @_;
-
-	unless($self->{'handler'}->finished_nodes())
-	{
-		while (my $line = shift @{$self->{'buffer'}})
+	} else {
+		
+		for(0..$#{$self->{'buffer'}})
 		{
+			my $line = shift(@{$self->{'buffer'}});
+			
+			next unless($line);
+
 			eval
 			{
 				$line =~ s/\x{d}\x{a}//go;
+				$line =~ s/\x{a}\x{d}//go;
 				chomp($line);
 				$self->{'parser'}->$parse_method($line);
+
 			};
-		
+			
 			if($@)
 			{
 				warn $@;
 				&{ $self->{'callback'} }($@);
 			}
 
-			last if($lazy and $self->{'handler'}->finished_nodes());
-			
+			if($self->{'handler'}->finished_nodes())
+			{
+				my $node = $self->{'handler'}->get_node();
+				$node = $self->{'meta'}->infilter(\$node);
+				return [$node];
+			}
 		}
+		return [];
 	}
 }
-
-sub put {
+	
+sub put()
+{
 	my($self, $nodes) = @_;
 	
 	my $output = [];

@@ -31,6 +31,7 @@ sub reset()
 	$self->{'finished'} = [];
 	$self->{'parents'} = [];
 	$self->{'depth'} = -1;
+	$self->{'count'} = 0;
 }
 
 sub startDocument() { }
@@ -46,6 +47,7 @@ sub startElement()
 		my $start = XNode->new($tag)->stream_start(1);
 		$start->attr($_, $attr{$_}) foreach keys %attr;
 		push(@{$self->{'finished'}}, $start);
+		$self->{'count'}++;
 		$self->{'depth'} = 0;
 		return;
 
@@ -81,10 +83,12 @@ sub endElement()
 		# could be used to signal reset()?
 		my $end = XNode->new($tag)->stream_end(1);
 		push(@{$self->{'finished'}}, $end);
+		$self->{'count'}++;
 	} 
 	elsif($self->{'depth'} == 1)
 	{
 		push(@{$self->{'finished'}}, $self->{'currnode'});
+		$self->{'count'}++;
 		delete $self->{'currnode'};
 		pop(@{$self->{'parents'}});
 	
@@ -112,13 +116,14 @@ sub characters()
 sub get_node()
 {
 	my $self = shift;
+	$self->{'count'}--;
 	return shift(@{$self->{'finished'}});
 }
 
 sub finished_nodes()
 {
 	my $self = shift;
-	return scalar(@{$self->{'finished'}})
+	return $self->{'count'};
 }
 
 1;

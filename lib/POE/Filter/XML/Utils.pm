@@ -110,7 +110,7 @@ sub get_stanza_error()
 	$node->attr('type' => +IQ_ERROR);
 	
 	$node->insert_tag('error')->attr('type', $type)
-		->insert_tag($error, +NS_XMPP_STANZA);
+		->insert_tag($error, ['xmlns', +NS_XMPP_STANZA]);
 	
 	return $node;
 }
