@@ -10,7 +10,7 @@ use constant id => 4;
 use constant start => 5;
 use constant end => 6;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 my $id = 0;
 
@@ -206,7 +206,7 @@ sub insert_tag()
 
 	my $tag;
 	
-	if(ref($tagname) eq ref($self))
+	if(ref($tagname) and $tagname->isa('POE::Filter::XML::Node'))
 	{
 		$tag = $tagname;
 		$tagname = $tag->[+tagname];
