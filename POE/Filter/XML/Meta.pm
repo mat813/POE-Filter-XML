@@ -6,6 +6,8 @@ use warnings;
 package POE::Filter::XML::Meta;
 use PXR::Node;
 
+our $VERSION = '0.1';
+
 sub new()
 {
 	my $class = shift;

@@ -1,0 +1,9 @@
+MANIFEST			This list of files
+Makefile.PL
+POE/Filter/XML.pm
+POE/Filter/XML/Handler.pm
+POE/Filter/XML/Meta.pm
+lib/POE/Filter/XML.pm
+lib/POE/Filter/XML/Handler.pm
+lib/POE/Filter/XML/Meta.pm
+test.pl

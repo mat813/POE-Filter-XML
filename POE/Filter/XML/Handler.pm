@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use PXR::Node;
 
+our $VERSION = '0.1';
+
 sub new()
 {
 	my $class = shift;

@@ -4,7 +4,7 @@ use strict;
 my $parser;
 my $parse_method;
 
-our $VERSION = '0.1';
+our $VERSION = '0.1.1';
 
 BEGIN
 {
