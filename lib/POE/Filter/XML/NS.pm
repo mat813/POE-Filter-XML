@@ -16,8 +16,8 @@ use constant {
 
 	NS_JABBER_AUTH => 'jabber:iq:auth',
 	NS_JABBER_REGISTER => 'jabber:iq:register',
-	NS_JABBER_DISCOINFO => 'jabber:iq:disco#info',
-	NS_JABBER_DISCOITEMS => 'jabber:iq:disco#items',
+	NS_JABBER_DISCOINFO => 'http://jabber.org/protocol/disco#info',
+	NS_JABBER_DISCOITEMS => 'http://jabber.org/protocol/disco#items',
 	NS_JABBER_ROSTER => 'jabber:iq:roster',
 
 	NS_XMPP_SASL => 'urn:ietf:params:xml:ns:xmpp-sasl',

@@ -10,3 +10,4 @@ lib/POE/Filter/XML/Parser.pm
 lib/POE/Filter/XML/Utils.pm
 test.pl
 META.yml                                 Module meta-data (added by MakeMaker)
+install/ExtUtils/AutoInstall.pm		AutoInstall incase we do not have one.

@@ -4,7 +4,7 @@ use strict;
 my $parser;
 my $parse_method;
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 BEGIN
 {
@@ -242,6 +242,63 @@ sub get_one()
 			}
 		}
 		return [];
+	}
+}
+
+sub get()
+{
+	my ($self,$raw) = @_;
+
+	if (defined $raw) {
+		foreach my $raw_data (@$raw) {
+		    push (@{$self->{'buffer'}}, split (/(?:\015?\012|\012\015?)/s, $raw_data));
+		}
+	}
+
+	if($self->{'handler'}->finished_nodes())
+	{
+	    my $return = [];
+	    while(my $node = $self->{'handler'}->get_node())
+	    {
+		$node = $self->{'meta'}->infilter(\$node);
+		push @$return, $node;
+	    }
+	    return($return);
+	
+	} else {
+	    for(0..$#{$self->{'buffer'}})
+		{
+		    my $line = shift(@{$self->{'buffer'}});
+			
+		    next unless($line);
+		    
+		    eval
+		    {
+			$line =~ s/\x{d}\x{a}//go;
+			$line =~ s/\x{a}\x{d}//go;
+			chomp($line);
+			$self->{'parser'}->$parse_method($line);
+			
+		    };
+		    
+		    if($@)
+		    {
+			warn $@;
+			&{ $self->{'callback'} }($@);
+		    }
+		    
+		}
+	    if($self->{'handler'}->finished_nodes())
+	    {		
+		my $return = [];
+		while(my $node = $self->{'handler'}->get_node())
+		{
+		    $node = $self->{'meta'}->infilter(\$node);
+		    push @$return, $node;
+		}
+		
+		return($return);
+	    }
 	}
 }
 	
