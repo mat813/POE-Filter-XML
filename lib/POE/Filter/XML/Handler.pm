@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use POE::Filter::XML::Node;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.21';
 
 sub new()
 {
@@ -41,7 +41,7 @@ sub startElement()
 	my ($self, $expat, $tag, %attr ) = @_;
 	
 	if($self->{'depth'} == -1) 
-	{
+	{	    
 		#start of a document: make and return the tag
 		my $start = XNode->new($tag)->stream_start(1);
 		$start->attr($_, $attr{$_}) foreach keys %attr;
@@ -98,12 +98,12 @@ sub endElement()
 sub characters() 
 {
 	my($self, $expat, $data ) = @_;
-	
+
 	if($self->{'depth'} == 0)
 	{
 		return;
 	}
-	
+
 	my $data2 = $self->{'currnode'}->data() . $data;
 	$self->{'currnode'}->data($data2);
 	

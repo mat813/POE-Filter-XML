@@ -10,7 +10,7 @@ use constant id => 4;
 use constant start => 5;
 use constant end => 6;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.21';
 
 my $id = 0;
 

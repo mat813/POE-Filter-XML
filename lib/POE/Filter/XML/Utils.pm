@@ -12,7 +12,7 @@ use POE::Filter::XML::NS qw/ :IQ :JABBER /;
 
 require Exporter;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.21';
 our @ISA = qw/ Exporter /;
 our @EXPORT = qw/ &get_config &get_reply &get_error &get_user &get_host
 					&get_resource &get_bare_jid &get_parts
@@ -66,32 +66,20 @@ sub get_hash_from_node()
 sub get_reply()
 {
 	my $node = shift;
-	my $empty = shift;
 
 	my $attribs = $node->get_attrs();
 	my $to = $attribs->{'to'};
 	my $from = $attribs->{'from'};
-	my $xmlns = $node->get_tag('query')->attr('xmlns');
 
-	if($empty)
+	$node->attr('to' => $from);
+	$node->attr('from' => $to);
+
+	if($node->name() eq 'iq')
 	{
-		my $blank = XNode->new('iq');
-		$blank->insert_tag('query', $xmlns);
-		$blank->attr('to' => $from);
-		$blank->attr('from' => $to);
-		$blank->attr('type' => +IQ_RESULT);
-		$blank->attr('id' => $attribs->{'id'}) if exists($attribs->{'id'});
-		
-		return $blank;
-		
-	} else {
-
-		$node->attr('to' => $from);
-		$node->attr('from' => $to);
 		$node->attr('type' => +IQ_RESULT);
-
-		return $node;
 	}
+
+	return $node;
 }
 
 sub get_error()

@@ -2,7 +2,7 @@ package POE::Filter::XML::Meta;
 use strict;
 use warnings;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.21';
 
 sub new()
 {

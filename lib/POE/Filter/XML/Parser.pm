@@ -27,7 +27,7 @@ package POE::Filter::XML::Parser;
 use strict;
 use warnings;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.21';
 
 sub new
 {
@@ -88,7 +88,7 @@ sub parse
     if(!$self->{DOC} == 1)
     {
         my $start = index($self->{XML},"<");
-
+	
         if ((substr($self->{XML},$start,3) eq "<?x") ||
             (substr($self->{XML},$start,3) eq "<?X"))
         {
@@ -277,7 +277,7 @@ __END__
 
  use POE::Filter::XML::Parser;
 
- my $parser = PXR::Parser->new(
+ my $parser = POE::Filter::XML::Parser->new(
                   'Handlers' => {
                       'startDocument' => \&start_doc,
                       'endDocument'   => \&end_doc,
