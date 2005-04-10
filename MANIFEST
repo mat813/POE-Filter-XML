@@ -6,7 +6,6 @@ lib/POE/Filter/XML/Handler.pm
 lib/POE/Filter/XML/Meta.pm
 lib/POE/Filter/XML/Node.pm
 lib/POE/Filter/XML/NS.pm
-lib/POE/Filter/XML/Parser.pm
 lib/POE/Filter/XML/Utils.pm
 test.pl
 META.yml                                 Module meta-data (added by MakeMaker)

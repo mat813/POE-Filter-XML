@@ -2,7 +2,7 @@ package POE::Filter::XML::Meta;
 use strict;
 use warnings;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 sub new()
 {
@@ -14,13 +14,13 @@ sub new()
 
 sub infilter()
 {
-	my ($self, $node) = @_; # Note: $node is a reference
+	my ($self, $node) = @_;
 	return $self->_default($node, 0);
 }
 
 sub outfilter()
 {
-	my ($self, $node) = @_; # Note: $node is a reference
+	my ($self, $node) = @_;
 	return $self->_default($node, 1);
 	
 }
@@ -31,18 +31,18 @@ sub _default()
 
 	if($outbound)
 	{
-		if(ref($$node) eq 'POE::Filter::XML::Node')
+		if(ref($node) eq 'POE::Filter::XML::Node')
 		{
-			return ${$node}->to_str();
+			return $node->to_str();
 
 		} else {
 
-			return $$node;
+			return $node;
 		}
 		
 	} else {
 
-		return $$node;
+		return $node;
 	}
 }
 1;

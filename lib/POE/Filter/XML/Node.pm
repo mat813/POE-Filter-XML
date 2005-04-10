@@ -2,6 +2,8 @@ package POE::Filter::XML::Node;
 use warnings;
 use strict;
 
+use Scalar::Util('weaken', 'isweak');
+
 use constant tagname => 0;
 use constant attrs => 1;
 use constant tagdata => 2;
@@ -9,15 +11,17 @@ use constant kids => 3;
 use constant id => 4;
 use constant start => 5;
 use constant end => 6;
+use constant tagparent => 7;
+use constant recursive => 8;
 
-our $VERSION = '0.22';
+our $VERSION = '0.27';
 
 my $id = 0;
 
 sub new() 
 {
-	my ($class, $name, $attr) = @_;
-
+	my ($class, $name, $attr, $parent) = @_;
+	
 	my $node = [
 		 $name,		#name
 		 {},		#attr
@@ -26,7 +30,11 @@ sub new()
 		 ++$id,		#id
 		 0,			#start
 		 0,			#end
+		 $parent,	#parent
+		 0,			#recursive
 	];
+
+	&weaken($node->[+tagparent]) if defined $parent;
 
 	bless($node, $class);
 	$node->insert_attrs($attr) if defined($attr);
@@ -76,11 +84,19 @@ sub clone()
 	$new_node->[+attrs] = \%attrs;
 	
 	my $kids = $self->get_sort_children();
+
 	foreach my $key (@$kids)
 	{
-		$new_node->insert_tag($key->clone());
+		if($key->[+id] == $self->[+id])
+		{
+			$new_node->insert_tag($new_node);
+			
+		} else {
+			
+			$new_node->insert_tag($key->clone());
+		}
 	}
-	
+
 	return $new_node;
 }
 
@@ -89,6 +105,11 @@ sub get_id()
 	my $self = shift;
 
 	return $self->[+id];
+}
+
+sub parent()
+{
+	return shift->[+tagparent];
 }
 
 sub name() 
@@ -200,35 +221,107 @@ sub rawdata()
  
 }
 
+sub mark_lineage()
+{
+	my $self = shift;
+
+	if($self->[+id] == $self->parent()->[+id])
+	{
+		if(ref($self->[+kids]->{$self->[+tagname]}) eq 'ARRAY')
+		{
+			if(!&isweak($self->[+kids]->{$self->[+tagname]}->[-1]))
+			{
+				&weaken($self->[+kids]->{$self->[+tagname]}->[-1]);
+				++$self->[+recursive];
+			}
+			
+		} else {
+
+			if(!&isweak($self->[+kids]->{$self->[+tagname]}))
+			{
+				&weaken($self->[+kids]->{$self->[+tagname]});
+				++$self->[+recursive];
+			}
+		}
+
+		return;
+	}
+	
+	my $temp = $self;
+
+	while(my $ascendant = $temp->parent())
+	{
+		if($ascendant->[+id] == $self->[+id])
+		{
+			if(ref($self->[+tagparent]->[+kids]->{$self->[+tagname]}) 
+				eq 'ARRAY')
+			{
+				
+				if(!&isweak($self->[+tagparent]->[+kids]->
+					{$self->[+tagname]}->[-1]))
+				{
+					&weaken($self->[+tagparent]->[+kids]->
+						{$self->[+tagname]}->[-1]);
+					++$self->[+recursive];
+				}
+				
+			} else {
+				
+				if(!&isweak($self->[+tagparent]->[+kids]->{$self->[+tagname]}))
+				{
+					&weaken($self->[+tagparent]->[+kids]->{$self->[+tagname]});
+					++$self->[+recursive];
+				}
+			
+			}
+
+			last;
+				
+		}
+
+		if(defined($ascendant->parent()))
+		{
+			last if $ascendant->[+id] == $ascendant->parent()->[+id];
+		}
+		
+		$temp = $ascendant;
+	}
+
+	foreach my $child (@{$self->get_sort_children()})
+	{
+		if($self->[+id] == $child->[+id])
+		{
+			next;
+		}
+
+		$child->mark_lineage();
+	}
+	
+}
+
 sub insert_tag() 
 {
 	my ($self, $tagname, $ns) = @_;
-
+	
 	my $tag;
 	
 	if(ref($tagname) and $tagname->isa('POE::Filter::XML::Node'))
 	{
 		$tag = $tagname;
 		$tagname = $tag->[+tagname];
+		$tag->[+tagparent] = $self;
+		&weaken($tag->[+tagparent]);
 	
 	} else {
 		
-		if(defined($ns))
-		{
-			$tag = POE::Filter::XML::Node->new($tagname, $ns);
-		
-		} else {
-
-			$tag = POE::Filter::XML::Node->new($tagname);
-		}
+		$tag = POE::Filter::XML::Node->new($tagname, $ns, $self);
 	}
-	
+
 	if(exists($self->[+kids]->{$tagname}))
 	{
 		if(ref($self->[+kids]->{$tagname}) eq 'ARRAY')
 		{
 			push(@{$self->[+kids]->{$tagname}}, $tag);
-			return $tag;
 		
 		} else {
 
@@ -236,13 +329,18 @@ sub insert_tag()
 			$self->[+kids]->{$tagname} = [];
 
 			push(@{$self->[+kids]->{$tagname}}, $first);
+			$first->mark_lineage();
+			
 			push(@{$self->[+kids]->{$tagname}}, $tag);
-			return $tag;
 		}
+
+	} else {
+	
+		$self->[+kids]->{$tagname} = $tag;
 	}
 	
-	$self->[+kids]->{$tagname} = $tag;
-	
+	$tag->mark_lineage();
+
 	return $tag;
 
 }
@@ -272,7 +370,21 @@ sub to_str()
 		
 		foreach my $kid (@$kids)
 		{
-			$str .= $kid->to_str();
+			if($self->[+recursive])
+			{
+				if($kid->[+id] == $self->[+id])
+				{
+					$str .= '<'.$kid->[+tagname].'/>';
+				
+				} else {
+				
+					$str .= $kid->to_str();
+				}
+			
+			} else {
+
+				$str .= $kid->to_str();
+			}
 		}
 		
 		$str .= '</'.$self->[+tagname].'>';
@@ -313,19 +425,27 @@ sub get_tag()
 
 }
 
-sub detach_child()
+sub detach()
 {
-	my ($self, $prodigal) = @_;
+	my $self = shift;
 	
-	my $tag = $self->[+kids]->{$prodigal->name()};
+	my $id = $self->[+id];
+	my $name = $self->[+tagname];
 	
+	my $tag = $self->[+tagparent]->[+kids]->{$name};
+
 	if(ref($tag) eq 'ARRAY')
 	{
 		my $index = 0;
 		foreach my $child (@$tag)
 		{
-			if($child->[+id] == $prodigal->[+id])
+			if($child->[+id] == $id)
 			{
+				if($id == $self->[+tagparent]->[+id])
+				{
+					--$self->[+recursive];
+				}
+
 				return splice(@$tag, $index, 1);
 			
 			} else {
@@ -333,11 +453,24 @@ sub detach_child()
 				++$index;
 			}
 		}
-		
+	
 	} else {
-
-		return delete $self->[+kids]->{$prodigal->name()};
+		
+		if($id == $self->[+tagparent]->[+id])
+		{
+			--$self->[+recursive];
+		}
+		
+		return delete $self->[+tagparent]->[+kids]->{$name};
 	}
+}
+			
+sub detach_child() #DEPRECATED
+{
+	my ($self, $prodigal) = @_;
+
+	return $prodigal->detach();
+	
 }
 
 sub get_children() 
@@ -474,11 +607,19 @@ children of the node is ignored and an ending tag is constructed.
 
 clone() does a B<deep> copy of the node and returns it. This includes all of
 its children, data, attributes, etc. The returned node stands on its own and 
-does not hold any references to the node cloned.
+does not hold any references to the node cloned. Also note that it has its own 
+unique creation ID.
+
+Note: This method works but is expensive with self-referential nodes.
 
 =item get_id()
 
-get_id() returns the creation ID of the node.
+get_id() returns the creation ID of the node. Useful for sorting. Creation IDs 
+are unique to each Node.
+
+=item parent()
+
+parent() returns the nodes parent reference
 
 =item name()
 
@@ -525,25 +666,40 @@ POE::Filter::XML::Node reference to add to the parents children, and (2) if
 for insert_attrs() to be built into the new child. insert_tag() returns either
 newly created node, or the reference passed in originally, respectively.
 
+Note: You may safely insert yourself or any of your ascendants including your
+direct parent.
+
 =item to_str()
 
 to_str() returns a string representation of the entire node structure. Note
 there is no caching of stringifying nodes, so each operation is expensive. It
 really should wait until it's time to serialized to be sent over the wire.
 
+Note: Any self-referential or circular-referential links in your Node will only
+output the tag of the referent. ie. <parent><child><parent/></child></parent>
+Otherwise there is the problem with infinite recursion and we can't have that.
+
 =item get_tag()
 
-get_tag() takes two arguments, (1) the name of the tag wanted, and (2) an 
-optional namespace to filter against. Depending on the context of the return 
-value (array or scalar), get_tag() either returns an array of nodes match the 
-name of the tag/filter supplied, or a single POE::Filter::XML::Node reference
-that matches, respectively.
+get_tag() takes one argument, (1) the name of the tag wanted. Depending on 
+the context of the return value (array or scalar), get_tag() either returns an
+array of nodes match the name of the tag/filter supplied, or a single 
+POE::Filter::XML::Node reference that matches, respectively. If there is no 
+tag matching the specified argument, undef is returned.
 
-=item detach_child()
+=item detach_child() DEPRECATED: PLEASE SEE DETACH
 
 detach_child() takes one argument: a POE::Filter::XML::Node reference that is 
 a child of the node. It then removes that child from its children and returns 
 it as a stand alone node on its own.
+
+=item detach()
+
+detach() takes no arguments and will sever itself from the tree to be a stand 
+alone Node. In the case of self-referential Nodes, the internal counter is 
+decremented by one and its position is removed. If multiple references exist 
+(ie. you store yourself as several children), one of those children is removed.
+The invoking object will return itself.
 
 =item get_children()
 
@@ -564,15 +720,20 @@ in sorted order according to their creation ID.
 
 =head1 BUGS AND NOTES
 
-If you were specifically making use of the parent() and parent related 
-functions, then I apologize for their rather quick demise. It is too much to
-ask people to keep track of things with circular references. So there is no 
-longer the concept of nodes have parents, only parents being containers with 
-children.
+By request, parent and parent related functions are returned and safely 
+implemented using Scalar::Util::weaken. The performance penalty has not been
+fully assessed, so proper testing should be utilized to ascertain the full
+extent of the added (mis)features.
+
+Also note that ancesants are carefully tracked to avoid infinite recursion for 
+methods such as to_str() and clone(). Although the functionality has been 
+been tested, managing self-referential decendants is highly discouraged and may
+introduce weird behaviors because weakened references must be tracked by hand. 
+You have been warned.
 
 =head1 AUTHOR
 
-Copyright (c) 2003 Nicholas Perez. Released and distributed under the GPL.
+Copyright (c) 2003, 2004 Nicholas Perez. Released and distributed under the GPL.
 
 =cut
 

@@ -23,8 +23,13 @@ if ($@ || $ExtUtils::AutoInstall::VERSION < 0.32)
 ExtUtils::AutoInstall->import
 (
 	-version => '0.40',
-	-core => ['POE' => '0.28_02'],
-	'XML::Parser Support' => ['XML::Parser' => '2.34']
+	-core => 
+	[
+		'POE' => '0.28_02', 
+		'Scalar::Util' => '1.14', 
+		'XML::SAX' => '0.12',
+		'XML::SAX::Expat::Incremental' => '0.02',
+	],
 );
 
 
@@ -32,5 +37,11 @@ WriteMakefile
 (
 	'NAME' => 'POE::Filter::XML',
 	'VERSION_FROM' => 'lib/POE/Filter/XML.pm',
-	'PREREQ_PM' => \%prereqs,
+	'PREREQ_PM' => 
+	{
+		'POE' => '0.28_02',
+		'Scalar::Util' => '1.14',
+		'XML::SAX' => '0.12',
+		'XML::SAX::Expat::Incremental' => '0.02',
+	},
 );

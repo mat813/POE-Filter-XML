@@ -1,10 +1,14 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         POE-Filter-XML
-version:      0.24
+version:      0.27
 version_from: lib/POE/Filter/XML.pm
 installdirs:  site
 requires:
+    POE:                           0.28_02
+    Scalar::Util:                  1.14
+    XML::SAX:                      0.12
+    XML::SAX::Expat::Incremental:  0.02
 
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+generated_by: ExtUtils::MakeMaker version 6.26
