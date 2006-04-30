@@ -14,7 +14,7 @@ use constant end => 6;
 use constant tagparent => 7;
 use constant recursive => 8;
 
-our $VERSION = '0.27';
+our $VERSION = '0.28';
 
 my $id = 0;
 
@@ -362,7 +362,7 @@ sub to_str()
 		$str .= ' ' . $attr . "='" . $self->[+attrs]->{$attr} . "'";
 	}
 	
-	if ($self->[+tagdata] or keys %{$self->[+kids]})
+	if (length($self->[+tagdata]) or keys %{$self->[+kids]})
 	{
 		$str .= '>' . $self->[+tagdata];
 		

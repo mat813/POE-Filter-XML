@@ -1,12 +1,13 @@
-MANIFEST			This list of files
-LICENSE
-Makefile.PL
+Build.PL
 lib/POE/Filter/XML.pm
 lib/POE/Filter/XML/Handler.pm
 lib/POE/Filter/XML/Meta.pm
 lib/POE/Filter/XML/Node.pm
 lib/POE/Filter/XML/NS.pm
 lib/POE/Filter/XML/Utils.pm
+LICENSE
+Makefile.PL
+MANIFEST			This list of files
+META.yml
+README
 test.pl
-META.yml                                 Module meta-data (added by MakeMaker)
-install/ExtUtils/AutoInstall.pm		AutoInstall incase we do not have one.

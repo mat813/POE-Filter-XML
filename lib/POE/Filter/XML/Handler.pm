@@ -1,12 +1,12 @@
 package POE::Filter::XML::Handler;
-use POE::Preprocessor;
+use Filter::Template; 
 const XNode POE::Filter::XML::Node
 
 use strict;
 use warnings;
 use POE::Filter::XML::Node;
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 sub new()
 {

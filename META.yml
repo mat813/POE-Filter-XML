@@ -1,14 +1,38 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         POE-Filter-XML
-version:      0.27
-version_from: lib/POE/Filter/XML.pm
-installdirs:  site
+---
+name: POE-Filter-XML
+version: 0.28
+author: []
+abstract: A POE Filter for parsing XML
+license: gpl
+resources:
+  license: http://www.opensource.org/licenses/gpl-license.php
 requires:
-    POE:                           0.28_02
-    Scalar::Util:                  1.14
-    XML::SAX:                      0.12
-    XML::SAX::Expat::Incremental:  0.02
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.26
+  Filter::Template: 1.01
+  POE: 0.34_01
+  Scalar::Util: 1.18
+  XML::SAX: 0.14
+  XML::SAX::Expat::Incremental: 0.04
+  perl: 5.8.1
+provides:
+  POE::Filter::XML:
+    file: lib/POE/Filter/XML.pm
+    version: 0.28
+  POE::Filter::XML::Handler:
+    file: lib/POE/Filter/XML/Handler.pm
+    version: 0.23
+  POE::Filter::XML::Meta:
+    file: lib/POE/Filter/XML/Meta.pm
+    version: 0.22
+  POE::Filter::XML::NS:
+    file: lib/POE/Filter/XML/NS.pm
+    version: 0.21
+  POE::Filter::XML::Node:
+    file: lib/POE/Filter/XML/Node.pm
+    version: 0.28
+  POE::Filter::XML::Utils:
+    file: lib/POE/Filter/XML/Utils.pm
+    version: 0.21
+generated_by: Module::Build version 0.28
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2
