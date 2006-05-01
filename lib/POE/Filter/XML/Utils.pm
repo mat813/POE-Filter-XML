@@ -1,5 +1,5 @@
 package POE::Filter::XML::Utils;
-use POE::Preprocessor;
+use Filter::Template;
 const XNode POE::Filter::XML::Node
 
 use strict;
@@ -12,7 +12,7 @@ use POE::Filter::XML::NS qw/ :IQ :JABBER /;
 
 require Exporter;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 our @ISA = qw/ Exporter /;
 our @EXPORT = qw/ &get_config &get_reply &get_error &get_user &get_host
 					&get_resource &get_bare_jid &get_parts

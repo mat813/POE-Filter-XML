@@ -1,0 +1,10 @@
+2006-04-30 NPEREZ <nperez@cpan.org>
+	
+	* Version bumped to 0.29
+	* Clean up some more POE::Preprocessor leftovers
+
+2006-04-30 NPEREZ <nperez@cpan.org>
+
+	* Version bumped to 0.28
+	* '0' in CDATA logic error corrected
+	* Transition from MakeMaker to Module::Build
