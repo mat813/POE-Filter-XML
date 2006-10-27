@@ -2,6 +2,7 @@ package POE::Filter::XML::Node;
 use warnings;
 use strict;
 
+use POE::Filter::XML::Utils();
 use Scalar::Util('weaken', 'isweak');
 
 use constant tagname => 0;
@@ -14,11 +15,11 @@ use constant end => 6;
 use constant tagparent => 7;
 use constant recursive => 8;
 
-our $VERSION = '0.28';
+our $VERSION = '0.29';
 
 my $id = 0;
 
-sub new() 
+sub new()
 {
 	my ($class, $name, $attr, $parent) = @_;
 	
@@ -34,7 +35,7 @@ sub new()
 		 0,			#recursive
 	];
 
-	&weaken($node->[+tagparent]) if defined $parent;
+	weaken($node->[+tagparent]) if defined $parent;
 
 	bless($node, $class);
 	$node->insert_attrs($attr) if defined($attr);
@@ -112,7 +113,7 @@ sub parent()
 	return shift->[+tagparent];
 }
 
-sub name() 
+sub name()
 {
 	my ($self, $name) = @_;
 	
@@ -136,7 +137,7 @@ sub insert_attrs()
 	return $self;
 }
 
-sub attr() 
+sub attr()
 {
 
 	my ($self, $attr, $val) = @_;
@@ -149,12 +150,12 @@ sub attr()
 			
 		} else {
 		
-			$self->[+attrs]->{$attr} = $val;
+			$self->[+attrs]->{$attr} = POE::Filter::XML::Utils::encode($val);
 			return $self;
 		}
 	}
 
-	return $self->[+attrs]->{$attr};
+	return POE::Filter::XML::Utils::decode($self->[+attrs]->{$attr});
  
 }
 
@@ -165,47 +166,18 @@ sub get_attrs()
 	return $self->[+attrs];
 }
 						
-sub data() 
+sub data()
 {
 	my ($self, $data) = @_;
 	
 	if (defined $data) 
 	{
-		$self->[+tagdata] = _encode($data);
+		$self->[+tagdata] = POE::Filter::XML::Utils::encode($data);
 		return $self;
 	}
 
-	return _decode($self->[+tagdata]);
+	return POE::Filter::XML::Utils::decode($self->[+tagdata]);
  
-}
-
-sub _encode() 
-{
-	my $data = shift;
-
-	$data =~ s/&/&amp;/go;
-	$data =~ s/</&lt;/go;
-	$data =~ s/>/&gt;/go;
-	$data =~ s/'/&apos;/go;
-	$data =~ s/"/&quot;/go;
-
-	return $data;
-
-}
-
-						
-sub _decode() 
-{
-	my $data = shift;
-
-	$data =~ s/&amp;/&/go;
-	$data =~ s/&lt;/</go;
-	$data =~ s/&gt;/>/go;
-	$data =~ s/&apos;/'/go;
-	$data =~ s/&quot;/"/go;
-
-	return $data;
-
 }
 
 sub rawdata()
@@ -225,21 +197,21 @@ sub mark_lineage()
 {
 	my $self = shift;
 
-	if($self->[+id] == $self->parent()->[+id])
+	if($self->[+id] == $self->[+tagparent]->[+id])
 	{
 		if(ref($self->[+kids]->{$self->[+tagname]}) eq 'ARRAY')
 		{
-			if(!&isweak($self->[+kids]->{$self->[+tagname]}->[-1]))
+			if(!isweak($self->[+kids]->{$self->[+tagname]}->[-1]))
 			{
-				&weaken($self->[+kids]->{$self->[+tagname]}->[-1]);
+				weaken($self->[+kids]->{$self->[+tagname]}->[-1]);
 				++$self->[+recursive];
 			}
 			
 		} else {
 
-			if(!&isweak($self->[+kids]->{$self->[+tagname]}))
+			if(!isweak($self->[+kids]->{$self->[+tagname]}))
 			{
-				&weaken($self->[+kids]->{$self->[+tagname]});
+				weaken($self->[+kids]->{$self->[+tagname]});
 				++$self->[+recursive];
 			}
 		}
@@ -249,7 +221,7 @@ sub mark_lineage()
 	
 	my $temp = $self;
 
-	while(my $ascendant = $temp->parent())
+	while(my $ascendant = $temp->[+tagparent])
 	{
 		if($ascendant->[+id] == $self->[+id])
 		{
@@ -257,19 +229,19 @@ sub mark_lineage()
 				eq 'ARRAY')
 			{
 				
-				if(!&isweak($self->[+tagparent]->[+kids]->
+				if(!isweak($self->[+tagparent]->[+kids]->
 					{$self->[+tagname]}->[-1]))
 				{
-					&weaken($self->[+tagparent]->[+kids]->
+					weaken($self->[+tagparent]->[+kids]->
 						{$self->[+tagname]}->[-1]);
 					++$self->[+recursive];
 				}
 				
 			} else {
 				
-				if(!&isweak($self->[+tagparent]->[+kids]->{$self->[+tagname]}))
+				if(!isweak($self->[+tagparent]->[+kids]->{$self->[+tagname]}))
 				{
-					&weaken($self->[+tagparent]->[+kids]->{$self->[+tagname]});
+					weaken($self->[+tagparent]->[+kids]->{$self->[+tagname]});
 					++$self->[+recursive];
 				}
 			
@@ -299,7 +271,7 @@ sub mark_lineage()
 	
 }
 
-sub insert_tag() 
+sub insert_tag()
 {
 	my ($self, $tagname, $ns) = @_;
 	
@@ -310,7 +282,7 @@ sub insert_tag()
 		$tag = $tagname;
 		$tagname = $tag->[+tagname];
 		$tag->[+tagparent] = $self;
-		&weaken($tag->[+tagparent]);
+		weaken($tag->[+tagparent]);
 	
 	} else {
 		
@@ -345,7 +317,7 @@ sub insert_tag()
 
 }
 
-sub to_str() 
+sub to_str()
 {
 	my $self = shift;
 	
@@ -393,6 +365,7 @@ sub to_str()
 		
 		if($self->[+start])
 		{
+			$str = "<?xml version='1.0'?>" . $str;
 			$str .= '>';
 		
 		} else {
@@ -406,7 +379,7 @@ sub to_str()
  
 }
 
-sub get_tag() 
+sub get_tag()
 {
 	my ($self, $tagname) = @_;
 	
@@ -465,15 +438,7 @@ sub detach()
 	}
 }
 			
-sub detach_child() #DEPRECATED
-{
-	my ($self, $prodigal) = @_;
-
-	return $prodigal->detach();
-	
-}
-
-sub get_children() 
+sub get_children()
 {
 	my ($self) = @_;
 	my $return = [];
@@ -527,24 +492,17 @@ use POE::Filter::XML::Node;
 my $node = POE::Filter::XML::Node->new('iq'); 
 
 $node->attr('to', 'nickperez@jabber.org'); 
-
 $node->attr('from', 'POE::Filter::XML::Node@jabber.org'); 
-
 $node->attr('type', 'get'); 
 
 my $query = $node->insert_tag('query', 'jabber:iq:foo');
 $query->insert_tag('foo_tag')->data('bar');
-
 my $foo = $query->get_tag('foo_tag');
-
 my $foo2 = $foo->clone();
 $foo2->data('new_data');
-
 $query->insert_tag($foo2);
 
 print $node->to_str() . "\n";
-
-$node->free();
 
 -- 
 
@@ -733,7 +691,7 @@ You have been warned.
 
 =head1 AUTHOR
 
-Copyright (c) 2003, 2004 Nicholas Perez. Released and distributed under the GPL.
+Copyright (c) 2003, 2004, 2006 Nicholas Perez. Released and distributed under the GPL.
 
 =cut
 

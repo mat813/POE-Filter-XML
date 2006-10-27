@@ -2,25 +2,32 @@ package POE::Filter::XML;
 use strict;
 use warnings;
 
-our $VERSION = '0.29';
+our $VERSION = '0.30';
 
 use XML::SAX;
 use XML::SAX::ParserFactory;
 use POE::Filter::XML::Handler;
 use POE::Filter::XML::Meta;
-$XML::SAX::ParserPackage = "XML::SAX::Expat::Incremental (0.02)";
+use Carp;
+$XML::SAX::ParserPackage = "XML::SAX::Expat::Incremental (0.04)";
+
+# This is to make Filter::Stackable happy
+use base('POE::Filter');
 
 sub clone()
 {
-	my ($self, $buffer, $callback, $handler, $meta) = @_;
+	my ($self) = @_;
 	
-	return POE::Filter::XML->new($buffer, $callback, $handler, $meta);
+	return POE::Filter::XML->new(
+		$self->{'buffer'}, 
+		$self->{'callback'},
+		$self->{'handler'});
 }
 
 sub new() 
 {
 	
-	my ($class, $buffer, $callback, $handler, $meta) = @_;
+	my ($class, $buffer, $callback, $handler) = @_;
 	
 	my $self = {};
 
@@ -29,14 +36,9 @@ sub new()
 		$buffer = '';
 	}
 
-	if(not defined($meta))
-	{
-		$meta = POE::Filter::XML::Meta->new();
-	}
-	
 	if(not defined($callback))
 	{
-		$callback = sub{};
+		$callback = sub{ Carp::confess('Parsing error happened!'); };
 	}
 	
 	if(not defined($handler))
@@ -46,7 +48,6 @@ sub new()
 	
 	my $parser = XML::SAX::ParserFactory->parser('Handler' => $handler);
 	
-	$self->{'meta'} = $meta;
 	$self->{'handler'} = $handler;
 	$self->{'parser'} = $parser;
 	$self->{'callback'} = $callback;
@@ -63,8 +64,6 @@ sub new()
 		&{ $self->{'callback'} }($@);
 	}
 
-		
-	
 	bless($self, $class);
 	return $self;
 }
@@ -80,30 +79,9 @@ sub DESTROY()
 
 sub reset()
 {
-	my ($self, $callback, $handler, $meta) = @_;
+	my ($self) = @_;
 
-	if(defined($callback))
-	{
-		$self->{'callback'} = $callback;
-	
-	} else {
-
-		delete $self->{'callback'};
-	}
-
-	if(defined($handler))
-	{
-		$self->{'handler'} = $handler;
-
-	} else {
-
-		$self->{'handler'}->reset();
-	}
-
-	if(defined($meta))
-	{
-		$self->{'meta'} = $meta;
-	}
+	$self->{'handler'}->reset();
 
 	$self->{'parser'} = XML::SAX::ParserFactory->parser
 	(	
@@ -125,7 +103,7 @@ sub get_one_start()
 				@{$self->{'buffer'}}, 
 				split
 				(
-					/(?:\015?\012|\012\015?)/s, 
+					/(?=\015?\012|\012\015?)/s, 
 					$raw_data
 				)
 			);
@@ -139,9 +117,7 @@ sub get_one()
 
 	if($self->{'handler'}->finished_nodes())
 	{
-		my $node = $self->{'handler'}->get_node();
-		$node = $self->{'meta'}->infilter($node);
-		return [$node];
+		return [$self->{'handler'}->get_node()];
 	
 	} else {
 		
@@ -153,11 +129,7 @@ sub get_one()
 
 			eval
 			{
-				$line =~ s/\x{d}\x{a}//go;
-				$line =~ s/\x{a}\x{d}//go;
-				chomp($line);
 				$self->{'parser'}->parse_string($line);
-
 			};
 			
 			if($@)
@@ -169,7 +141,12 @@ sub get_one()
 			if($self->{'handler'}->finished_nodes())
 			{
 				my $node = $self->{'handler'}->get_node();
-				$node = $self->{'meta'}->infilter($node);
+				
+				if($node->stream_end())
+				{
+					$self->reset();
+				}
+				
 				return [$node];
 			}
 		}
@@ -177,77 +154,6 @@ sub get_one()
 	}
 }
 
-sub get()
-{
-	my ($self,$raw) = @_;
-
-	if (defined $raw) 
-	{
-		foreach my $raw_data (@$raw) 
-		{
-		    push
-			(
-				@{$self->{'buffer'}}, 
-				split
-				(
-					/(?:\015?\012|\012\015?)/s, 
-					$raw_data
-				)
-			);
-		}
-	}
-
-	if($self->{'handler'}->finished_nodes())
-	{
-	    my $return = [];
-	    
-		while(my $node = $self->{'handler'}->get_node())
-	    {
-			$node = $self->{'meta'}->infilter($node);
-			push @$return, $node;
-	    }
-		
-	    return($return);
-	
-	} else {
-	    
-		for(0..$#{$self->{'buffer'}})
-		{
-		    my $line = shift(@{$self->{'buffer'}});
-			
-		    next unless($line);
-		    
-		    eval
-		    {
-				$line =~ s/\x{d}\x{a}//go;
-				$line =~ s/\x{a}\x{d}//go;
-				chomp($line);
-				$self->{'parser'}->parse_string($line);
-		    };
-		    
-		    if($@)
-		    {
-				warn $@;
-				&{ $self->{'callback'} }($@);
-		    }
-		    
-		}
-		
-	    if($self->{'handler'}->finished_nodes())
-	    {		
-			my $return = [];
-			
-			while(my $node = $self->{'handler'}->get_node())
-			{
-		    	$node = $self->{'meta'}->infilter($node);
-		    	push @$return, $node;
-			}
-		
-			return($return);
-	    }
-	}
-}
-	
 sub put()
 {
 	my($self, $nodes) = @_;
@@ -256,8 +162,11 @@ sub put()
 
 	foreach my $node (@$nodes) 
 	{
-		my $cooked = $self->{'meta'}->outfilter($node);
-		push(@$output, $cooked);
+		if($node->stream_start())
+		{
+			$self->reset();
+		}
+		push(@$output, $node->to_str());
 	}
 	
 	return($output);
@@ -298,25 +207,39 @@ what the default XML::SAX compliant Handler produces from the stream it is
 given. You are of course encouraged to override the default Handler for your 
 own purposes if you feel POE::Filter::XML::Node to be inadequate.
 
+Also, Filter requires POE::Filter::XML::Nodes for put(). If you are wanting to
+send raw XML, it is recommened that you subclass the Filter and override put()
+
 =head1 PUBLIC METHODS
 
 Since POE::Filter::XML follows the POE::Filter API look to POE::Filter for 
-documentation. The only method covered here is new()
+documentation. Deviations from Filter API will be covered here.
 
 =over 4 
 
 =item new()
 
-new() accepts a total of four(4) arguments that are all optional: (1) a string
+new() accepts a total of three(3) arguments that are all optional: (1) a string
 that is XML waiting to be parsed (i.e. xml received from the wheel before the
 Filter was instantiated), (2) a coderef to be executed upon a parsing error,
-(3) a XML::SAX complient Handler and (4) a meta Filter -- A secondary filter 
-for another level of abstraction if desired, for example, say I want to use 
-Serialize::XML in conjunction with POE::Filter::XML::Node, each 
-POE::Filter::XML::Node would get delivered to the secondary filter where the 
-Nodes are returned to XML and that xml interpreted to recreate perl objects.
+(3) and a XML::SAX compliant Handler. 
 
-See POE::Filter::XML::Meta for implementing your own meta Filter.
+If no options are specified, then a default coderef containing a simple
+Carp::confess is generated, and a new instance of POE::Filter::XML::Handler is 
+used.
+
+=item reset()
+
+reset() is an internal method that gets called when either a stream_start(1)
+POE::Filter::XML::Node gets placed into the filter via put(), or when a
+stream_end(1) POE::Filter::XML::Node is pulled out of the queue of finished
+Nodes via get_one(). This facilitates automagical behavior when using the 
+Filter within the XMPP protocol that requires a many new stream initiations.
+This method really should never be called outside of the Filter, but it is 
+documented here in case the Filter is used outside of the POE context.
+
+Internally reset() gets another parser, calls reset() on the stored handler
+and then deletes any data in the buffer.
 
 =back 4
 
@@ -326,9 +249,18 @@ Previous versions relied upon XML::Parser (an expat derivative) or a very poor
 pure perl XML parser pulled from XML::Stream. XML::SAX is now the standard and
 has greatly simplified development on this project.
 
+Meta filtering was removed. No one was using it and the increased level of
+indirection was a posible source of performance issues.
+
+put() now requires POE::Filter::XML::Nodes. Raw XML text can no longer be
+put() into the stream without subclassing the Filter and overriding put().
+
+reset() semantics were properly worked out to now be automagical and
+consistent. Thanks Eric Waters (ewaters@uarc.com).
+
 =head1 AUTHOR
 
-Copyright (c) 2003, 2004, 2005 Nicholas Perez. 
+Copyright (c) 2003, 2004, 2005, 2006 Nicholas Perez. 
 Released and distributed under the GPL.
 
 =cut

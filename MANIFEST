@@ -1,7 +1,6 @@
 Build.PL
 lib/POE/Filter/XML.pm
 lib/POE/Filter/XML/Handler.pm
-lib/POE/Filter/XML/Meta.pm
 lib/POE/Filter/XML/Node.pm
 lib/POE/Filter/XML/NS.pm
 lib/POE/Filter/XML/Utils.pm

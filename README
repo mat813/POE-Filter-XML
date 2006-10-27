@@ -26,30 +26,54 @@ DESCRIPTION
     Handler for your own purposes if you feel POE::Filter::XML::Node to be
     inadequate.
 
+    Also, Filter requires POE::Filter::XML::Nodes for put(). If you are
+    wanting to send raw XML, it is recommened that you subclass the Filter
+    and override put()
+
 PUBLIC METHODS
     Since POE::Filter::XML follows the POE::Filter API look to POE::Filter
-    for documentation. The only method covered here is new()
+    for documentation. Deviations from Filter API will be covered here.
 
     new()
-        new() accepts a total of four(4) arguments that are all optional:
+        new() accepts a total of three(3) arguments that are all optional:
         (1) a string that is XML waiting to be parsed (i.e. xml received
         from the wheel before the Filter was instantiated), (2) a coderef to
-        be executed upon a parsing error, (3) a XML::SAX complient Handler
-        and (4) a meta Filter -- A secondary filter for another level of
-        abstraction if desired, for example, say I want to use
-        Serialize::XML in conjunction with POE::Filter::XML::Node, each
-        POE::Filter::XML::Node would get delivered to the secondary filter
-        where the Nodes are returned to XML and that xml interpreted to
-        recreate perl objects.
+        be executed upon a parsing error, (3) and a XML::SAX compliant
+        Handler.
 
-        See POE::Filter::XML::Meta for implementing your own meta Filter.
+        If no options are specified, then a default coderef containing a
+        simple Carp::confess is generated, and a new instance of
+        POE::Filter::XML::Handler is used.
+
+    reset()
+        reset() is an internal method that gets called when either a
+        stream_start(1) POE::Filter::XML::Node gets placed into the filter
+        via put(), or when a stream_end(1) POE::Filter::XML::Node is pulled
+        out of the queue of finished Nodes via get_one(). This facilitates
+        automagical behavior when using the Filter within the XMPP protocol
+        that requires a many new stream initiations. This method really
+        should never be called outside of the Filter, but it is documented
+        here in case the Filter is used outside of the POE context.
+
+        Internally reset() gets another parser, calls reset() on the stored
+        handler and then deletes any data in the buffer.
 
 BUGS AND NOTES
     Previous versions relied upon XML::Parser (an expat derivative) or a
     very poor pure perl XML parser pulled from XML::Stream. XML::SAX is now
     the standard and has greatly simplified development on this project.
 
+    Meta filtering was removed. No one was using it and the increased level
+    of indirection was a posible source of performance issues.
+
+    put() now requires POE::Filter::XML::Nodes. Raw XML text can no longer
+    be put() into the stream without subclassing the Filter and overriding
+    put().
+
+    reset() semantics were properly worked out to now be automagical and
+    consistent. Thanks Eric Waters (ewaters@uarc.com).
+
 AUTHOR
-    Copyright (c) 2003, 2004, 2005 Nicholas Perez. Released and distributed
-    under the GPL.
+    Copyright (c) 2003, 2004, 2005, 2006 Nicholas Perez. Released and
+    distributed under the GPL.
 
