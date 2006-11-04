@@ -2,12 +2,11 @@ package POE::Filter::XML;
 use strict;
 use warnings;
 
-our $VERSION = '0.30';
+our $VERSION = '0.31';
 
 use XML::SAX;
 use XML::SAX::ParserFactory;
 use POE::Filter::XML::Handler;
-use POE::Filter::XML::Meta;
 use Carp;
 $XML::SAX::ParserPackage = "XML::SAX::Expat::Incremental (0.04)";
 
