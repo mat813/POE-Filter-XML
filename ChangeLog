@@ -1,3 +1,9 @@
+2006-12-16 NPEREZ <nperez@cpan.org>
+	
+	* Version bumpted to 0.32 (I know, I skipped one)
+	* rt.cpan.org #23668: Add a check for defined-ness for encode/decode
+	* Thanks to David Davis <xantus@xantus.org> for bug submit
+
 2006-10-26 NPEREZ <nperez@cpan.org>
 	
 	* Version bumped to 0.30

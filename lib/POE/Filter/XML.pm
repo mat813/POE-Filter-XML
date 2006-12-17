@@ -2,13 +2,14 @@ package POE::Filter::XML;
 use strict;
 use warnings;
 
-our $VERSION = '0.31';
+our $VERSION = '0.32';
 
 use XML::SAX;
 use XML::SAX::ParserFactory;
 use POE::Filter::XML::Handler;
+use Scalar::Util qw/weaken/;
 use Carp;
-$XML::SAX::ParserPackage = "XML::SAX::Expat::Incremental (0.04)";
+$XML::SAX::ParserPackage = "XML::SAX::Expat::Incremental";
 
 # This is to make Filter::Stackable happy
 use base('POE::Filter');
@@ -51,6 +52,8 @@ sub new()
 	$self->{'parser'} = $parser;
 	$self->{'callback'} = $callback;
 	
+	weaken($self->{'parser'});
+
 	eval
 	{
 		$self->{'parser'}->parse_string($buffer);
@@ -60,20 +63,28 @@ sub new()
 	if ($@)
 	{
 		warn $@;
-		&{ $self->{'callback'} }($@);
+		$self->{'callback'}->($@);
 	}
 
 	bless($self, $class);
 	return $self;
 }
 
-sub DESTROY()
+sub DESTROY
 {
 	my $self = shift;
+	
+	#HACK: stupid circular references in 3rd party modules
+	#We need to weaken/break these or the damn parser leaks
+	$self->{'parser'}->{'_expat_nb_obj'}->release();
+	weaken($self->{'parser'}->{'_expat_nb_obj'});
+	weaken($self->{'parser'}->{'_xml_parser_obj'}->{'__XSE'});
 	
 	delete $self->{'meta'};
 	delete $self->{'parser'};
 	delete $self->{'handler'};
+
+	#warn '########## DESTROY IN FILTER CALLED ############';
 }
 
 sub reset()
@@ -244,9 +255,14 @@ and then deletes any data in the buffer.
 
 =head1 BUGS AND NOTES
 
-Previous versions relied upon XML::Parser (an expat derivative) or a very poor
-pure perl XML parser pulled from XML::Stream. XML::SAX is now the standard and
-has greatly simplified development on this project.
+The current XML::SAX::Expat::Incremental version introduces some ugly circular
+references due to the way XML::SAX::Expat constructs itself (it stores a 
+references to itself inside the XML::Parser object it constructs to get an
+OO-like interface within the callbacks passed to it). Upon destroy, I clean
+these up with Scalar::Util::weaken and by manually calling release() on the
+ExpatNB object created within XML::SAX::Expat::Incremental. This is an ugly
+hack. If anyone finds some subtle behavior I missed, let me know and I will
+drop XML::SAX support all together going back to just plain-old XML::Parser.
 
 Meta filtering was removed. No one was using it and the increased level of
 indirection was a posible source of performance issues.
@@ -259,7 +275,7 @@ consistent. Thanks Eric Waters (ewaters@uarc.com).
 
 =head1 AUTHOR
 
-Copyright (c) 2003, 2004, 2005, 2006 Nicholas Perez. 
+Copyright (c) 2003 - 2006 Nicholas Perez. 
 Released and distributed under the GPL.
 
 =cut

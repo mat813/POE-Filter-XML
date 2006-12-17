@@ -8,7 +8,7 @@ use POE::Filter::XML::NS qw/ :IQ :JABBER /;
 
 require Exporter;
 
-our $VERSION = '0.23';
+our $VERSION = '0.24';
 
 our @ISA = qw/ Exporter /;
 our @EXPORT = qw/ get_config get_reply get_error get_user get_host
@@ -18,27 +18,31 @@ our @EXPORT = qw/ get_config get_reply get_error get_user get_host
 
 sub decode 
 {
-    my $data = shift;
-
-    $data =~ s/&amp;/&/go;
-    $data =~ s/&lt;/</go;
-    $data =~ s/&gt;/>/go;
-    $data =~ s/&apos;/'/go;
-    $data =~ s/&quot;/"/go;
-
+	my $data = shift;
+	
+	if(defined($data) and length($data))
+	{
+		$data =~ s/&amp;/&/go;
+	   	$data =~ s/&lt;/</go;
+		$data =~ s/&gt;/>/go;
+		$data =~ s/&apos;/'/go;
+		$data =~ s/&quot;/"/go;
+	}
 	return $data;
 }
 
 sub encode 
 {
-    my $data = shift;
-
-	$data =~ s/&/&amp;/go;
-	$data =~ s/</&lt;/go;
-	$data =~ s/>/&gt;/go;
-	$data =~ s/'/&apos;/go;
-	$data =~ s/"/&quot;/go;
-
+	my $data = shift;
+	
+	if(defined($data) and length($data))
+	{
+		$data =~ s/&/&amp;/go;
+		$data =~ s/</&lt;/go;
+		$data =~ s/>/&gt;/go;
+		$data =~ s/'/&apos;/go;
+		$data =~ s/"/&quot;/go;
+	}
 	return $data;
 
 }
