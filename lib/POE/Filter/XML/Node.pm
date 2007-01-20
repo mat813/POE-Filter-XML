@@ -15,7 +15,7 @@ use constant end => 6;
 use constant tagparent => 7;
 use constant recursive => 8;
 
-our $VERSION = '0.29';
+our $VERSION = '0.33';
 
 my $id = 0;
 
@@ -691,7 +691,8 @@ You have been warned.
 
 =head1 AUTHOR
 
-Copyright (c) 2003, 2004, 2006 Nicholas Perez. Released and distributed under the GPL.
+Copyright (c) 2003 - 2007 Nicholas Perez. 
+Released and distributed under the GPL.
 
 =cut
 

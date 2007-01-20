@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use POE::Filter::XML::Node;
 
-our $VERSION = '0.23';
+our $VERSION = '0.33';
 
 sub new()
 {

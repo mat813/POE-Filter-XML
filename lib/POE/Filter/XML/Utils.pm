@@ -8,7 +8,7 @@ use POE::Filter::XML::NS qw/ :IQ :JABBER /;
 
 require Exporter;
 
-our $VERSION = '0.24';
+our $VERSION = '0.33';
 
 our @ISA = qw/ Exporter /;
 our @EXPORT = qw/ get_config get_reply get_error get_user get_host
@@ -149,29 +149,29 @@ sub get_stanza_error
 sub get_user
 {
 	my $jid = shift;
-	$jid =~ s/\@\S+$//;
+	$jid =~ s/\@\S+$// if defined $jid;
 	return $jid;
 }
 
 sub get_host
 {
 	my $jid = shift;
-	$jid =~ s/^\S+\@//;
-	$jid =~ s/\/\S+$//;
+	$jid =~ s/^\S+\@// if defined $jid;
+	$jid =~ s/\/\S+$// if defined $jid;
 	return $jid;
 }
 
 sub get_bare_jid
 {
 	my $jid = shift;
-	$jid =~ s/\/\S+$//;
+	$jid =~ s/\/\S+$// if defined $jid;
 	return $jid;
 }
 
 sub get_resource
 {
 	my $jid = shift;
-	$jid =~ s/^\S+\///;
+	$jid =~ s/^\S+\/// if defined $jid;
 	return $jid;
 }
 

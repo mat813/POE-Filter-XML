@@ -2,7 +2,7 @@ package POE::Filter::XML;
 use strict;
 use warnings;
 
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 
 use XML::SAX;
 use XML::SAX::ParserFactory;
@@ -76,15 +76,13 @@ sub DESTROY
 	
 	#HACK: stupid circular references in 3rd party modules
 	#We need to weaken/break these or the damn parser leaks
-	$self->{'parser'}->{'_expat_nb_obj'}->release();
+	$self->{'parser'}->{'_expat_nb_obj'}->release()
+		if defined($self->{'parser'}->{'_expat_nb_obj'});
 	weaken($self->{'parser'}->{'_expat_nb_obj'});
 	weaken($self->{'parser'}->{'_xml_parser_obj'}->{'__XSE'});
 	
-	delete $self->{'meta'};
 	delete $self->{'parser'};
 	delete $self->{'handler'};
-
-	#warn '########## DESTROY IN FILTER CALLED ############';
 }
 
 sub reset()
@@ -275,7 +273,7 @@ consistent. Thanks Eric Waters (ewaters@uarc.com).
 
 =head1 AUTHOR
 
-Copyright (c) 2003 - 2006 Nicholas Perez. 
+Copyright (c) 2003 - 2007 Nicholas Perez. 
 Released and distributed under the GPL.
 
 =cut
