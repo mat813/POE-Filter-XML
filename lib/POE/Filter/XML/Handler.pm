@@ -5,37 +5,44 @@ const XNode POE::Filter::XML::Node
 use strict;
 use warnings;
 use POE::Filter::XML::Node;
+use base('XML::SAX::Base');
 
-our $VERSION = '0.33';
+our $VERSION = '0.35';
+
+sub clone()
+{
+	my $self = shift(@_);
+
+	return POE::Filter::XML::Handler->new($self->{'notstreaming'});
+}
 
 sub new()
 {
-	my ($class) = @_;
-	my $self = {
-		
-		'depth'		=> -1,
+	my ($class, $notstreaming) = @_;
+	my $self = 
+	{
+		'depth'		=> $notstreaming ? 0 : -1,
 		'currnode'	=> undef,
 		'finished'	=> [],
 		'parents'	=> [],
+		'notstreaming'	=> $notstreaming,
 	};
 
 	bless $self, $class;
+
 	return $self;
 }
 
 sub reset()
-{
+{	
 	my $self = shift;
 
 	$self->{'currnode'} = undef;
 	$self->{'finished'} = [];
 	$self->{'parents'} = [];
-	$self->{'depth'} = -1;
+	$self->{'depth'} = $self->{'notstreaming'} ? 0 : -1;
 	$self->{'count'} = 0;
 }
-
-sub start_document() { }
-sub end_document() { }
 
 sub start_element() 
 {
@@ -44,26 +51,23 @@ sub start_element()
 	if($self->{'depth'} == -1) 
 	{	    
 		#start of a document: make and return the tag
-		my $start = XNode->new($data->{'Name'})->stream_start(1);
+
+		my $start = XNode->new($data->{'Name'});
+        $start->stream_start(1);
 		
 		foreach my $attrib (values %{$data->{'Attributes'}})
 		{
-			$start->attr($attrib->{'Name'}, $attrib->{'Value'});
+			$start->setAttribute($attrib->{'Name'}, $attrib->{'Value'});
 		}
 
-#		if(defined($data->{'NamespaceURI'}))
-#		{
-#			$start->attr('xmlns', $data->{'NamespaceURI'});
-#		}
-		
 		push(@{$self->{'finished'}}, $start);
 		
 		$self->{'count'}++;
-		$self->{'depth'} = 0;
-		
+		$self->{'depth'}++;
+			
 	} else {
 	
-		$self->{'depth'} += 1;
+		$self->{'depth'}++;
 
 		# Top level fragment
 		if($self->{'depth'} == 1)
@@ -72,7 +76,7 @@ sub start_element()
 			
 			foreach my $attrib (values %{$data->{'Attributes'}})
 			{
-				$self->{'currnode'}->attr
+				$self->{'currnode'}->setAttribute
 				(
 					$attrib->{'Name'}, 
 					$attrib->{'Value'}
@@ -84,11 +88,12 @@ sub start_element()
 		} else {
 		    
 			# Some node within a fragment
-			my $kid = $self->{'currnode'}->insert_tag($data->{'Name'});
+			my $kid = XNode->new($data->{'Name'});
+            $self->{'currnode'}->appendChild($kid);
 			
 			foreach my $attrib (values %{$data->{'Attributes'}})
 			{
-				$kid->attr($attrib->{'Name'}, $attrib->{'Value'});
+				$kid->setAttribute($attrib->{'Name'}, $attrib->{'Value'});
 			}
 
 			push(@{$self->{'parents'}}, $self->{'currnode'});
@@ -96,6 +101,8 @@ sub start_element()
 			$self->{'currnode'} = $kid;
 		}
 	}
+
+    $self->SUPER::start_element($data);
 }
 
 sub end_element()
@@ -104,11 +111,8 @@ sub end_element()
 	
 	if($self->{'depth'} == 0)
 	{
-		# gracefully deal with ending document tag
-		# and maybe send it off? 
-		# could be used to signal reset()?
-		
-		my $end = XNode->new($data->{'Name'})->stream_end(1);
+		my $end = XNode->new($data->{'Name'});
+        $end->stream_end(1);
 		
 		push(@{$self->{'finished'}}, $end);
 		
@@ -130,19 +134,22 @@ sub end_element()
 	}
 
 	$self->{'depth'}--;
+    
+    $self->SUPER::end_element($data);
 }
 
 sub characters() 
 {
 	my($self, $data) = @_;
-
+    
 	if($self->{'depth'} == 0)
 	{
 		return;
 	}
 
-	my $data2 = $self->{'currnode'}->data() . $data->{'Data'};
-	$self->{'currnode'}->data($data2);
+	$self->{'currnode'}->appendText($data->{'Data'});
+    
+    $self->SUPER::characters($data);
 }
 
 sub get_node()

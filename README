@@ -14,11 +14,7 @@ DESCRIPTION
     POE::Filter::XML provides POE with a completely encapsulated XML parsing
     strategy for POE::Wheels that will be dealing with XML streams.
 
-    POE::Filter::XML relies upon XML::SAX and XML::SAX::ParserFactory to
-    acquire a parser for parsing XML.
-
-    The assumed parser is XML::SAX::Expat::Incremental (Need a real push
-    parser)
+    The parser is XML::LibXML
 
     Default, the Filter will spit out POE::Filter::XML::Nodes because that
     is what the default XML::SAX compliant Handler produces from the stream
@@ -35,15 +31,17 @@ PUBLIC METHODS
     for documentation. Deviations from Filter API will be covered here.
 
     new()
-        new() accepts a total of three(3) arguments that are all optional:
-        (1) a string that is XML waiting to be parsed (i.e. xml received
-        from the wheel before the Filter was instantiated), (2) a coderef to
-        be executed upon a parsing error, (3) and a XML::SAX compliant
-        Handler.
+        new() accepts a total of four(4) named arguments that are all
+        optional: (1) 'BUFFER': a string that is XML waiting to be parsed
+        (i.e. xml received from the wheel before the Filter was
+        instantiated), (2) 'CALLBACK': a coderef to be executed upon a
+        parsing error, (3) 'HANDLER': a XML::SAX compliant Handler, or (4)
+        'NOTSTREAMING': boolean telling the filter to not process incoming
+        XML as a stream but as single documents.
 
         If no options are specified, then a default coderef containing a
-        simple Carp::confess is generated, and a new instance of
-        POE::Filter::XML::Handler is used.
+        simple Carp::confess is generated, a new instance of
+        POE::Filter::XML::Handler is used, and activated in streaming mode.
 
     reset()
         reset() is an internal method that gets called when either a
@@ -51,23 +49,31 @@ PUBLIC METHODS
         via put(), or when a stream_end(1) POE::Filter::XML::Node is pulled
         out of the queue of finished Nodes via get_one(). This facilitates
         automagical behavior when using the Filter within the XMPP protocol
-        that requires a many new stream initiations. This method really
-        should never be called outside of the Filter, but it is documented
-        here in case the Filter is used outside of the POE context.
+        that requires many new stream initiations. This method is also
+        called after every document when not in streaming mode. Useful for
+        handling XMLRPC processing.
+
+        This method really should never be called outside of the Filter, but
+        it is documented here in case the Filter is used outside of the POE
+        context.
 
         Internally reset() gets another parser, calls reset() on the stored
         handler and then deletes any data in the buffer.
 
+    callback()
+        callback() is an internal accessor to the coderef used when a
+        parsing error occurs. If you want to place stateful nformation into
+        a closure that gets executed when a parsering error happens, this is
+        the method to use.
+
 BUGS AND NOTES
-    The current XML::SAX::Expat::Incremental version introduces some ugly
-    circular references due to the way XML::SAX::Expat constructs itself (it
-    stores a references to itself inside the XML::Parser object it
-    constructs to get an OO-like interface within the callbacks passed to
-    it). Upon destroy, I clean these up with Scalar::Util::weaken and by
-    manually calling release() on the ExpatNB object created within
-    XML::SAX::Expat::Incremental. This is an ugly hack. If anyone finds some
-    subtle behavior I missed, let me know and I will drop XML::SAX support
-    all together going back to just plain-old XML::Parser.
+    The underlying parser was switched to XML::LibXML.
+
+    Also note that the PXF::Nodes returned are now subclassed from
+    LibXML::Element and that the underlying API for Nodes has changed
+    completely with out ANY compatibility at all. This was done for
+    performance reasons, and also to gain XPath capabilities on the nodes
+    returned.
 
     Meta filtering was removed. No one was using it and the increased level
     of indirection was a posible source of performance issues.
@@ -79,7 +85,15 @@ BUGS AND NOTES
     reset() semantics were properly worked out to now be automagical and
     consistent. Thanks Eric Waters (ewaters@uarc.com).
 
+    A new argument was added to the constructor to allow for multiple single
+    document processing instead of one coherent stream. This allows for
+    inbound XMLRPC requests to be properly parsed automagically without
+    manually touching the reset() method on the Filter.
+
+    Arguments passed to new() must be in name/value pairs (ie. 'BUFFER' =>
+    "stuff")
+
 AUTHOR
-    Copyright (c) 2003 - 2007 Nicholas Perez. Released and distributed under
+    Copyright (c) 2003 - 2009 Nicholas Perez. Released and distributed under
     the GPL.
 
