@@ -1,281 +1,239 @@
 package POE::Filter::XML::Node;
-use warnings;
-use strict;
-
-use 5.010;
-use Hash::Util('fieldhash');
-use XML::LibXML(':libxml');
-use base('XML::LibXML::Element', 'Exporter');
-
-our $VERSION = '0.38';
-
-our @EXPORT = qw/ &ordain /;
-
-sub new()
-{
-    my $class = shift(@_);
-    my $name = shift(@_);
-    my $attrs = shift(@_);
-
-    my $self = $class->SUPER::new($name);
-    
-    bless($self, $class);
-    
-    if(defined($attrs))
-    {
-        $self->setAttributes($attrs);
-    }
-    
-    return $self;
+BEGIN {
+  $POE::Filter::XML::Node::VERSION = '1.102800';
 }
 
-sub stream_start()
-{
-    my $self = shift(@_);
-    fieldhash state %stream_start;
-    if(@_)
-    {
-        $stream_start{$self} = shift(@_);
+#ABSTRACT: A XML::LibXML::Element subclass that adds streaming semantics
+
+use MooseX::Declare;
+
+
+class POE::Filter::XML::Node {
+    use MooseX::NonMoose::InsideOut;
+    extends 'XML::LibXML::Element';
+
+    use XML::LibXML(':libxml');
+    use MooseX::Types::Moose(':all');
+
+
+    has stream_start => (is => 'ro', writer => '_set_stream_start', isa => Bool, default => 0);
+    has stream_end => (is => 'ro', writer => '_set_stream_end', isa => Bool, default => 0);
+
+
+    method BUILDARGS(ClassName $class: $name) {
+
+        #only a name should be passed
+        return { name => $name };
     }
-    else
-    {
-        return $stream_start{$self};
+
+
+    override cloneNode(Bool $deep) {
+        
+        my $clone = super();
+        
+        bless($clone, $self->meta->name());
+        
+        $clone->_set_stream_start($self->stream_start());
+        $clone->_set_stream_end($self->stream_end());
+        
+        return $clone;
     }
-}
 
-sub stream_end()
-{
-    my $self = shift(@_);
-    fieldhash state %stream_end;
-    if(@_)
-    {
-        $stream_end{$self} = shift(@_);
+    override getChildrenByTagName(Str $name) {
+
+        return (map { bless($_, $self->meta->name()) } @{ super() });
     }
-    else
-    {
-        return $stream_end{$self};
+
+    override getChildrenByTagNameNS(Str $nsURI, $localname) {
+
+        return (map { bless($_, $self->meta->name()) } @{ super() });
     }
-}
 
-sub cloneNode()
-{
-	my $self = shift(@_);
-    my $deep = shift(@_);
+    override getChildrenByLocalName(Str $localname) {
+        
+        return (map { bless($_, $self->meta->name()) } @{ super() });
+    }
     
-    my $clone = $self->SUPER::cloneNode($deep);
-    
-    bless($clone, ref($self));
-    
-    $clone->stream_start($self->stream_start());
-    $clone->stream_end($self->stream_end());
-    
-    return $clone;
-}
+    override getElementsByTagName(Str $name) {
 
-sub ordain
-{
-    my $node = shift(@_);
-    return bless($node, __PACKAGE__);
-}
+        return (map { bless($_, $self->meta->name()) } @{ super() });
+    }
 
-sub setAttributes()
-{
-	my ($self, $array) = @_;
+    override getElementsByTagNameNS(Str $nsURI, $localname) {
 
-	for(my $i = 0; $i < scalar(@$array); $i++)
-	{
-        if($array->[$i] eq 'xmlns')
+        return (map { bless($_, $self->meta->name()) } @{ super() });
+    }
+
+    override getElementsByLocalName(Str $localname) {
+        
+        return (map { bless($_, $self->meta->name()) } @{ super() });
+    }
+    
+
+    override toString(Bool $formatted?) returns (Str) {
+
+        if($self->stream_start())
         {
-            $self->setNamespace($array->[++$i], '', 0);
+            my $string = '<';
+            $string .= $self->nodeName();
+            foreach my $attr ($self->attributes())
+            {
+                $string .= sprintf(' %s="%s"', $attr->nodeName(), $attr->value());
+            }
+            $string .= '>';
+            return $string;
+        }
+        elsif ($self->stream_end())
+        {
+            return sprintf('</%s>', $self->nodeName()); 
         }
         else
         {
-		    $self->setAttribute($array->[$i], $array->[++$i]);
+            return super();
         }
-	}
-	
-	return $self;
-}
+    }
 
-sub getAttributes()
-{
-	my $self = shift(@_);
-    
-    my $attributes = {};
 
-    foreach my $attrib ($self->attributes())
-    {
-        if($attrib->nodeType == XML_ATTRIBUTE_NODE)
+    method setAttributes(ArrayRef $array) {
+
+        for(my $i = 0; $i < scalar(@$array); $i++)
         {
-            $attributes->{$attrib->nodeName()} = $attrib->value();
+            if($array->[$i] eq 'xmlns')
+            {
+                $self->setNamespace($array->[++$i], '', 0);
+            }
+            else
+            {
+                $self->setAttribute($array->[$i], $array->[++$i]);
+            }
         }
     }
 
-    return $attributes;
-}
 
-sub appendChild()
-{
-    my $self = shift(@_);
-    my $child = shift(@_);
-    my $attrs = shift(@_);
+    method getAttributes() returns (HashRef) {
 
-    my $node;
+        my $attributes = {};
 
-    if(ref($child) and $child->isa(__PACKAGE__))
-    {
-        $self->SUPER::appendChild($child);
-        
-        $node = $child;
-        
-        if(defined($attrs))
+        foreach my $attrib ($self->attributes())
         {
-            $node->setAttributes($attrs);
+            if($attrib->nodeType == XML_ATTRIBUTE_NODE)
+            {
+                $attributes->{$attrib->nodeName()} = $attrib->value();
+            }
         }
+
+        return $attributes;
     }
-    else
-    {
-        $node = POE::Filter::XML::Node->new($child, $attrs);
-        $self->appendChild($node);
+
+
+    method getSingleChildByTagName(Str $name) returns (Maybe[POE::Filter::XML::Node]) {
+
+        my $node = ($self->getChildrenByTagName($name))[0];
+        return undef if not defined($node);
+        return $node;
     }
-    
-    return $node;
-}
 
-sub getSingleChildByTagName()
-{
-    my $self = shift(@_);
-    my $name = shift(@_);
-    
-    my $node = ($self->getChildrenByTagName($name))[0];
-    return undef if not defined($node);
-    bless($node, ref($self));
-    return $node;
-}
-						
-sub getChildrenHash()
-{
-	my $self = shift(@_);
-    
-    my $children = {};
 
-    foreach my $child ($self->getChildrenByTagName("*"))
-    {
-        bless($child, ref($self));
+    method getChildrenHash() returns (HashRef) {
 
-        my $name = $child->nodeName();
-        
-        if(!exists($children->{$name}))
+        my $children = {};
+
+        foreach my $child ($self->getChildrenByTagName("*"))
         {
-            $children->{$name} = [];
+            my $name = $child->nodeName();
+            
+            if(!exists($children->{$name}))
+            {
+                $children->{$name} = [];
+            }
+            
+            push(@{$children->{$name}}, $child);
         }
-        
-        push(@{$children->{$name}}, $child);
-    }
 
-    return $children;
-}
-
-sub toString()
-{
-    my $self = shift(@_);
-    my $formatted = shift(@_);
-
-    if($self->stream_start())
-    {
-        my $string = '<';
-        $string .= $self->nodeName();
-        foreach my $attr ($self->attributes())
-        {
-            $string .= sprintf(' %s="%s"', $attr->nodeName(), $attr->value());
-        }
-        $string .= '>';
-        return $string;
-    }
-    elsif ($self->stream_end())
-    {
-        return sprintf('</%s>', $self->nodeName()); 
-    }
-    else
-    {
-        return $self->SUPER::toString(defined($formatted) ? 1 : 0);
+        return $children;
     }
 }
 
-1;
 
-__END__
 
 =pod
 
 =head1 NAME
 
-POE::Filter::XML::Node - An enhanced XML::LibXML::Element subclass.
+POE::Filter::XML::Node - A XML::LibXML::Element subclass that adds streaming semantics
+
+=head1 VERSION
+
+version 1.102800
 
 =head1 SYNOPSIS
 
-use 5.010;
+    use POE::Filter::XML::Node;
 
-use POE::Filter::XML::Node;
+    my $node = POE::Filter::XML::Node->new('iq');
 
-my $node = POE::Filter::XML::Node->new('iq');
+    $node->setAttributes(
+        ['to', 'foo@other', 
+        'from', 'bar@other',
+        'type', 'get']
+    );
 
-$node->setAttributes(
-    ['to', 'foo@other', 
-    'from', 'bar@other',
-    'type', 'get']
-);
+    my $query = $node->addNewChild('jabber:iq:foo', 'query');
 
-my $query = $node->addNewChild('jabber:iq:foo', 'query');
+    $query->appendTextChild('foo_tag', 'bar');
 
-$query->appendTextChild('foo_tag', 'bar');
+    say $node->toString();
 
-say $node->toString();
+    -- 
 
--- 
+    (newlines and tabs for example only)
 
-(newlines and tabs for example only)
-
- <iq to='foo@other' from='bar@other' type='get'>
-   <query xmlns='jabber:iq:foo'>
-     <foo_tag>bar</foo_tag>
-   </query>
- </iq>
+    <iq to='foo@other' from='bar@other' type='get'>
+        <query xmlns='jabber:iq:foo'>
+            <foo_tag>bar</foo_tag>
+        </query>
+    </iq>
 
 =head1 DESCRIPTION
 
 POE::Filter::XML::Node is a XML::LibXML::Element subclass that aims to provide
 a few extra convenience methods and light integration into a streaming context.
 
-=head1 METHODS
+This module can be used to create arbitrarily complex XML data structures that
+know how to stringify themselves.
 
-=over 4
+=head1 PUBLIC_ATTRIBUTES
 
-=item stream_start($bool) [public]
+=head2 stream_[start|end]
 
-stream_start() called without arguments returns a bool on whether or not the
-node in question is the top level document tag. In an xml stream such as
-XMPP this is the <stream:stream> tag. Called with a single argument (a bool)
-sets whether this tag should be considered a stream starter.
+    is: ro, isa: Bool, default: false
 
-This method is significant because it determines the behavior of the toString()
-method. If stream_start() returns bool true, the tag will not be terminated.
-(ie. <iq to='test' from='test'> instead of <iq to='test' from='test'B</>>)
+These two attributes define behaviors to toString() for the node. In the case
+of stream_start, this means dropping all children and merely leaving the tag
+unterminated (eg. <start>). For stream_end, it will drop any children and treat
+the tag like a terminator (eg. </end>).
 
-=item stream_end($bool) [public]
+Each attribute has a private writer ('_set_stream_[start|end]') if it necessary
+to manipulate these attributes post construction.
 
-stream_end() called without arguments returns a bool on whether or not the
-node in question is the closing document tag in a stream. In an xml stream
-such as XMPP, this is the </stream:stream>. Called with a single argument (a 
-bool) sets whether this tag should be considered a stream ender.
+=head1 PUBLIC_METHODS
 
-This method is significant because it determines the behavior of the toString()
-method. If stream_end() returns bool true, then any data or attributes or
-children of the node is ignored and an ending tag is constructed. 
+=head2 override cloneNode
 
-(ie. </iq> instead of <iq to='test' from='test'><child/></iq>)
+    (Bool $deep)
 
-=item setAttributes($array_ref) [public]
+cloneNode is overriden to carry forward the stream_[end|start] attributes
+
+=head2 override toString
+
+    (Bool $formatted)
+
+toString was overridden to provide special stringification semantics for when
+stream_start or stream_end are boolean true. 
+
+=head2 setAttributes
+
+    (ArrayRef $array_of_tuples)
 
 setAttributes() accepts a single arguement: an array reference. Basically you
 pair up all the attributes you want to be into the node (ie. [attrib, value])
@@ -294,80 +252,41 @@ value used as the $nsURI argument, with no prefix, and not activated.
         V
  <node xmlns="http://foo"/>
 
-=item getAttributes() [public]
+=head2 getAttributes
+
+    returns (HashRef)
 
 This method returns all of the attribute nodes on the Element (filtering out 
-namespace declarations).
+namespace declarations) as a HashRef.
 
-=item getChildrenHash() [public]
+=head2 getFirstChildByTagName(Str $name)
 
-getChildrenHash() returns a hash reference to all the children of that node.
-Each key in the hash will be node name, and each value will be an array
-reference with all of the children with that name. Each child will be 
-blessed into POE::Filter::XML::Node.
-
-=item getSingleChildByTagName($name) [public]
+    returns (Maybe[POE::Filter::XML::Node])
 
 This is a convenience method that basically does:
  (getChildrenByTagName($name))[0]
 
-The returned object will be a POE::Filter::XML::Node object.
+=head2 getChildrenHash
 
-=item new($name,[$array_ref]) [overriden]
+    returns (HashRef)
 
-The default XML::LibXML::Element constructor is overridden to provide some
-extra functionality with regards to attributes. If the $array_ref argument is
-defined, it will be passed to setAttributes().
-
-Returns a newly constructed POE::Filter::XML::Node.
-
-=item cloneNode($deep) [overridden]
-
-This method overrides the base cloneNode() to propogate the stream_[start|end]
-bits on the node being cloned. The $deep argument is passed unchanged to the 
-base class.
-
-This returns a POE::Filter::XML::Node object.
-
-=item appendChild($name|$node,[$array_ref]) [overridden]
-
-Depending on the arguments provided, this method either 1) instantiates a new
-Node and appends to the subject or 2) appends the provided Node object. An
-array reference of attributes may also be provided in either case, and if
-defined, will be passed to setAttributes().
-
-=item toString($formatted) [overridden]
-
-toString() was overridden to provide special stringification semantics for when
-stream_start and stream_end are boolean true. 
-
-=back
-
-=head1 FUNCTIONS
-
-=over 4
-
-=item ordain($element) [exported by default]
-
-Use this exported function to get PFX::Nodes from XML::LibXML::Elements. This
-is useful for inherited methods that by default return Elements instead of
-Nodes.
-
-=back
-
-=head1 NOTES
-
-This Node module is 100% incompatible with previous versions. Do NOT assume
-this will upgrade cleanly.
-
-When using XML::LibXML::Element methods, the objects returned will NOT be 
-blessed into POE::Filter::XML::Node objects unless those methods are explictly
-overriden in this module. Use POE::Filter::XML::Node::ordain to overcome this.
+getChildrenHash() returns a hash reference to all the children of that node.
+Each key in the hash will be node name, and each value will be an array
+reference with all of the children with that name. 
 
 =head1 AUTHOR
 
-Copyright (c) 2003 - 2009 Nicholas Perez. 
-Released and distributed under the GPL.
+Nicholas R. Perez <nperez@cpan.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2010 by Nicholas R. Perez <nperez@cpan.org>.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
+
+
+__END__
 

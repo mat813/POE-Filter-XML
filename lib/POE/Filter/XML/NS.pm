@@ -1,9 +1,12 @@
 package POE::Filter::XML::NS;
+BEGIN {
+  $POE::Filter::XML::NS::VERSION = '1.102800';
+}
+
+#ABSTRACT: Provides constants that return appropriate namespace strings
 
 use strict;
 use warnings;
-
-our $VERSION = '0.38';
 
 use constant {
 	XMLNS_STREAM => 'http://etherx.jabber.org/streams',
@@ -66,17 +69,21 @@ push @{$EXPORT_TAGS{'all'}},
 
 1;
 
-__END__
+
 
 =pod
 
 =head1 NAME
 
-POE::Filter::XML::NS - Namespace support for JABBER(tm) XMPP
+POE::Filter::XML::NS - Provides constants that return appropriate namespace strings
+
+=head1 VERSION
+
+version 1.102800
 
 =head1 SYNOPSIS
 
-use POE::Filter::XML::NS qw/ :SERVICE :JABBER :IQ /;
+use POE::Filter::XML::NS qw/ :JABBER :IQ /;
 
 =head1 DESCRIPTION
 
@@ -85,11 +92,6 @@ POE::Filter::XML::Nodes (or any other representation) that requires namespace
 matching. The following export tags are explained below:
 
 =over 4
-
-=item :SERVICE
-
-":SERVICE" tag will import constants for use within the PXR Service environment
-such as the XML namespace jabber:service and its relatives.
 
 =item :JABBER
 
@@ -110,10 +112,19 @@ error
 Please reference the source file to know which namespaces are explictly
 supported and exported.
 
-
 =head1 AUTHOR
 
-Copyright (c) 2003 Nicholas Perez. Released and distributed under the GPL.
+Nicholas R. Perez <nperez@cpan.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2010 by Nicholas R. Perez <nperez@cpan.org>.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
+
+
+__END__
 
