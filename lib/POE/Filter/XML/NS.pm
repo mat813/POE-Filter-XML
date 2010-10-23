@@ -1,6 +1,6 @@
 package POE::Filter::XML::NS;
 BEGIN {
-  $POE::Filter::XML::NS::VERSION = '1.102800';
+  $POE::Filter::XML::NS::VERSION = '1.102960';
 }
 
 #ABSTRACT: Provides constants that return appropriate namespace strings
@@ -79,7 +79,7 @@ POE::Filter::XML::NS - Provides constants that return appropriate namespace stri
 
 =head1 VERSION
 
-version 1.102800
+version 1.102960
 
 =head1 SYNOPSIS
 

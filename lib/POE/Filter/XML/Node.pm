@@ -1,6 +1,6 @@
 package POE::Filter::XML::Node;
 BEGIN {
-  $POE::Filter::XML::Node::VERSION = '1.102800';
+  $POE::Filter::XML::Node::VERSION = '1.102960';
 }
 
 #ABSTRACT: A XML::LibXML::Element subclass that adds streaming semantics
@@ -164,7 +164,7 @@ POE::Filter::XML::Node - A XML::LibXML::Element subclass that adds streaming sem
 
 =head1 VERSION
 
-version 1.102800
+version 1.102960
 
 =head1 SYNOPSIS
 

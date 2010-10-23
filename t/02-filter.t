@@ -4,14 +4,7 @@ use strict;
 use Test::More;
 use POE::Filter::XML;
 
-my $xml = '<?xml version="1.0"?>
-<stream>
-<iq from="blah.com" type="result" id="abc123" to="blah@blah.com/foo">
-<service xmlns="jabber:iq:browse" type="jabber" name="Server" jid="blah.com"/>
-</iq>
-<presence to="blah@blah.com/foo" from="baz@blah.com/bar"/>
-<testnode>THIS IS SOME TEXT</testnode>
-</stream>';
+my $xml = '<stream><iq from="blah.com" type="result" id="abc123" to="blah@blah.com/foo"><service xmlns="jabber:iq:browse" type="jabber" name="Server" jid="blah.com"/></iq><presence to="blah@blah.com/foo" from="baz@blah.com/bar"/><testnode>THIS IS SOME TEXT</testnode></stream>';
 
 my $filter = POE::Filter::XML->new();
 
@@ -21,12 +14,12 @@ $filter->get_one_start([$xml]);
 while(1)
 {
     my $aref = $filter->get_one();
-    
+
     if(!@$aref)
     {
         last;
     }
-    
+
     my $node = $aref->[0];
 
     if( $node->stream_start() )
@@ -54,12 +47,12 @@ while(1)
 
         my $child = $node->getSingleChildByTagName('service');
         ok(defined($child), 'Got iq 7/13');
-        is(ref($child), 'POE::Filter::XML::Node', 'Got iq 8/13');            
+        is(ref($child), 'POE::Filter::XML::Node', 'Got iq 8/13');
         is($child->getAttribute('type'), 'jabber', 'Got iq 9/13');
         is($child->getAttribute('name'), 'Server', 'Got iq 10/13');
         is($child->getAttribute('jid'), 'blah.com', 'Got iq 11/13');
         ok(scalar($child->getNamespaces()), 'Got iq 12/13');
-        is(($child->getNamespaces())[0]->value(), 'jabber:iq:browse', 'Got iq 13/13'); 
+        is(($child->getNamespaces())[0]->value(), 'jabber:iq:browse', 'Got iq 13/13');
 
     }
 
@@ -78,5 +71,10 @@ while(1)
         is($node->textContent(), 'THIS IS SOME TEXT', 'Got testnode 3/3');
     }
 }
+
+$filter = POE::Filter::XML->new(not_streaming => 1);
+$filter->get_one_start([$xml]);
+my $node = $filter->get_one()->[0];
+is(length($node->toString()), length($xml), 'not_streaming works');
 
 done_testing();

@@ -1,6 +1,6 @@
 package POE::Filter::XML::Handler;
 BEGIN {
-  $POE::Filter::XML::Handler::VERSION = '1.102800';
+  $POE::Filter::XML::Handler::VERSION = '1.102960';
 }
 
 #ABSTRACT: Default SAX Handler for POE::Filter::XML
@@ -26,7 +26,7 @@ class POE::Filter::XML::Handler {
 
     has finished_nodes =>
     (
-        is => 'ro', 
+        is => 'ro',
         traits => ['Array'],
         isa => ArrayRef,
         default => sub { [] },
@@ -43,7 +43,7 @@ class POE::Filter::XML::Handler {
 
     has depth_stack =>
     (
-        is => 'ro', 
+        is => 'ro',
         traits => ['Array'],
         isa => ArrayRef,
         default => sub { [] },
@@ -61,7 +61,7 @@ class POE::Filter::XML::Handler {
 
 
     method reset {
-        
+
         $self->_clear_current_node();
         $self->_clear_finished_nodes();
         $self->_clear_depth_stack();
@@ -72,40 +72,44 @@ class POE::Filter::XML::Handler {
     override start_element(HashRef $data) {
 
         my $node = POE::Filter::XML::Node->new($data->{'Name'});
-        
+
         foreach my $attrib (values %{$data->{'Attributes'}})
         {
             $node->setAttribute
             (
-                $attrib->{'Name'}, 
+                $attrib->{'Name'},
                 $attrib->{'Value'}
             );
         }
 
-        
+
         if($self->depth() == 0)
         {
             #start of a document
             $self->push_depth_stack($node);
-            
-            unless($self->not_streaming)
+
+            if($self->not_streaming)
+            {
+                $self->current_node($node);
+            }
+            else
             {
                 $node->_set_stream_start(1);
                 $self->add_finished_node($node);
             }
-            else
-            {
-                $self->current_node($node);
-            }
-            
+
         }
         else
         {
             # Top level fragment
             $self->push_depth_stack($self->current_node);
-            
+
             if($self->depth() == 2)
             {
+                if($self->not_streaming)
+                {
+                    $self->current_node->appendChild($node);
+                }
                 $self->current_node($node);
             }
             else
@@ -115,20 +119,32 @@ class POE::Filter::XML::Handler {
                 $self->current_node($node);
             }
         }
-        
+
         super();
     }
 
 
     method end_element(HashRef $data) {
-        
+
         if($self->depth() == 1)
         {
-            unless($self->not_streaming)
+            if($self->not_streaming)
+            {
+                $self->add_finished_node($self->pop_depth_stack());
+            }
+            else
             {
                 my $end = POE::Filter::XML::Node->new($data->{'Name'});
                 $end->_set_stream_end(1);
                 $self->add_finished_node($end);
+            }
+
+        }
+        elsif($self->depth() == 2)
+        {
+            if($self->not_streaming)
+            {
+                $self->current_node($self->pop_depth_stack());
             }
             else
             {
@@ -136,20 +152,13 @@ class POE::Filter::XML::Handler {
                 $self->_clear_current_node();
                 $self->pop_depth_stack();
             }
-            
-        }
-        elsif($self->depth() == 2)
-        {
-            $self->add_finished_node($self->current_node);
-            $self->_clear_current_node();
-            $self->pop_depth_stack();
-        
+
         }
         else
         {
             $self->current_node($self->pop_depth_stack());
         }
-        
+
         super();
     }
 
@@ -162,7 +171,7 @@ class POE::Filter::XML::Handler {
         }
 
         $self->current_node->appendText($data->{'Data'});
-        
+
         super();
     }
 }
@@ -177,7 +186,7 @@ POE::Filter::XML::Handler - Default SAX Handler for POE::Filter::XML
 
 =head1 VERSION
 
-version 1.102800
+version 1.102960
 
 =head1 DESCRIPTION
 

@@ -1,4 +1,10 @@
-Revision history for POE-Filter-XML: 1.102800
+Revision history for POE-Filter-XML: 1.102960
+
+1.102960  2010-10-23 01:35:46 America/Chicago
+        Fix issues with not_streaming
+        Deprecation warning for ALL CAPS parameters improved
+        Add a test for the not_streaming functionality
+        Clean up some trailing whitespace
 
 1.102800  2010-10-07 03:08:23 America/Chicago
         Overhaul internals to use MooseX::Declare
@@ -8,12 +14,12 @@ Revision history for POE-Filter-XML: 1.102800
         Distribution now controlled by Dist::Zilla
 
 2009-04-18 NPEREZ <nperez@cpan.org>
-	
+
 	* Version 0.38
 	* Alter tests because of incoming smart match changes in blead perl
 
 2009-04-18 NPEREZ <nperez@cpan.org>
-	
+
 	* Version 0.37
 	* Remove dependency on Class::InsideOut
 	* Remove dependency on Filter::Template
@@ -21,12 +27,12 @@ Revision history for POE-Filter-XML: 1.102800
 	* Repo is now hosted at github
 
 2009-04-06 NPEREZ <nperez@cpan.org>
-	
+
 	* Version 0.36
 	* fixed a bug dealing with subclassing PFX::Node further
 
 2009-01-04 NPEREZ <nperez@cpan.org>
-	
+
 	* Version bumped to 0.35
 	* XML::LibXML support complete
 	* Node completely rewritten to be based on LibXML::Element
@@ -52,13 +58,13 @@ Revision history for POE-Filter-XML: 1.102800
 	* Add definedness checks for a couple of more items in Utils
 
 2006-12-16 NPEREZ <nperez@cpan.org>
-	
+
 	* Version bumpted to 0.32 (I know, I skipped one)
 	* rt.cpan.org #23668: Add a check for defined-ness for encode/decode
 	* Thanks to David Davis <xantus@xantus.org> for bug submit
 
 2006-10-26 NPEREZ <nperez@cpan.org>
-	
+
 	* Version bumped to 0.30
 	* rt.cpan.org #22290: attribute values are properly encoded/decoded
 	* rt.cpan.org #22291: attribute values are properly encoded/decoded
@@ -70,7 +76,7 @@ Revision history for POE-Filter-XML: 1.102800
 	* Thanks to Eric Waters <ewaters@uarc.com> for bug submits
 
 2006-04-30 NPEREZ <nperez@cpan.org>
-	
+
 	* Version bumped to 0.29
 	* Clean up some more POE::Preprocessor leftovers
 

@@ -1,6 +1,6 @@
 package POE::Filter::XML;
 BEGIN {
-  $POE::Filter::XML::VERSION = '1.102800';
+  $POE::Filter::XML::VERSION = '1.102960';
 }
 
 #ABSTRACT: XML parsing for the POE framework
@@ -11,14 +11,14 @@ use MooseX::Declare;
 class POE::Filter::XML {
     use MooseX::NonMoose;
     extends 'Moose::Object','POE::Filter';
-    
+
     use Carp;
     use Try::Tiny;
     use XML::LibXML;
     use POE::Filter::XML::Handler;
     use Moose::Util::TypeConstraints;
     use MooseX::Types::Moose(':all');
-    
+
 
     has buffer =>
     (
@@ -41,7 +41,7 @@ class POE::Filter::XML {
 
     has callback =>
     (
-        is => 'ro', 
+        is => 'ro',
         isa => CodeRef,
         lazy => 1,
         default => sub { Carp::confess('Parsing error happened: '. shift) },
@@ -83,39 +83,39 @@ class POE::Filter::XML {
     method _build_handler {
         POE::Filter::XML::Handler->new(not_streaming => $self->not_streaming)
     }
-    
+
     method _build_parser {
         XML::LibXML->new(Handler => $self->handler)
     }
 
 
     method BUILDARGS(ClassName $class: @args) returns (HashRef) {
-    
+
         my $config = {};
-        my $flag = 0;
+        my @keys;
         while($#args != -1)
         {
             my $key = shift(@args);
-            if($key =~ m/[A-Z]*/)
+            if($key =~ m/[A-Z]+/)
             {
-                $flag++;
+                push(@keys, $key);
                 $key = lc($key);
             }
 
             my $val = shift(@args);
             $config->{$key} = $val;
         }
-        
-        if($flag)
+
+        if(@keys)
         {
             Carp::cluck
             (
-                q|ALL CAPS usage of parameters to the constructor |.
+                q|ALL CAPS usage of parameters (| . join(' ', @keys) . q|)|.
+                q| to the constructor |.
                 q|is DEPRECATED. Please correct this usage soon. Next |.
                 q|version will NOT support these arguments|
             );
         }
-
         return $config;
     }
 
@@ -127,7 +127,7 @@ class POE::Filter::XML {
             try
             {
                 $self->parser->parse_chunk($self->join_buffer("\n"));
-            
+
             }
             catch
             {
@@ -142,7 +142,7 @@ class POE::Filter::XML {
 
 
     method reset {
-        
+
         $self->_reset_handler();
         $self->_clear_parser();
         $self->_clear_buffer();
@@ -150,10 +150,10 @@ class POE::Filter::XML {
 
 
     method get_one_start(ArrayRef $raw?) {
-        
-        if (defined $raw) 
+
+        if (defined $raw)
         {
-            foreach my $raw_data (@$raw) 
+            foreach my $raw_data (@$raw)
             {
                 $self->push_buffer(split(/(?=\x0a?\x0d|\x0d\x0a?)/s, $raw_data));
             }
@@ -166,10 +166,10 @@ class POE::Filter::XML {
         if($self->finished_nodes())
         {
             return [$self->get_node()];
-        
+
         }
         else
-        {    
+        {
             while($self->has_buffer())
             {
                 my $line = $self->shift_buffer();
@@ -186,13 +186,13 @@ class POE::Filter::XML {
                 if($self->finished_nodes())
                 {
                     my $node = $self->get_node();
-                    
+
                     if($node->stream_end() or $self->not_streaming)
                     {
                         $self->parser->parse_chunk('', 1);
                         $self->reset();
                     }
-                    
+
                     return [$node];
                 }
             }
@@ -202,10 +202,10 @@ class POE::Filter::XML {
 
 
     method put(ArrayRef $nodes) returns (ArrayRef) {
-        
+
         my $output = [];
 
-        foreach my $node (@$nodes) 
+        foreach my $node (@$nodes)
         {
             if($node->stream_start())
             {
@@ -213,7 +213,7 @@ class POE::Filter::XML {
             }
             push(@$output, $node->toString());
         }
-        
+
         return $output;
     }
 }
@@ -228,7 +228,7 @@ POE::Filter::XML - XML parsing for the POE framework
 
 =head1 VERSION
 
-version 1.102800
+version 1.102960
 
 =head1 SYNOPSIS
 
@@ -242,7 +242,7 @@ version 1.102800
 
 =head1 DESCRIPTION
 
-POE::Filter::XML provides POE with a completely encapsulated XML parsing 
+POE::Filter::XML provides POE with a completely encapsulated XML parsing
 strategy for POE::Wheels that will be dealing with XML streams.
 
 The parser is XML::LibXML
@@ -299,7 +299,7 @@ calls Carp::confess.
     is: ro, isa: POE::Filter::XML::Handler
 
 handler holds the SAX handler to be used for processing events from the parser.
-By default POE::Filter::XML::Handler is instantiated and used. 
+By default POE::Filter::XML::Handler is instantiated and used.
 
 The L</not_streaming> attribute is passed to the constructor of Handler.
 
@@ -340,12 +340,12 @@ explanation of its usage.
 reset() is an internal method that gets called when either a stream_start(1)
 POE::Filter::XML::Node gets placed into the filter via L</put>, or when a
 stream_end(1) POE::Filter::XML::Node is pulled out of the queue of finished
-Nodes via L</get_one>. This facilitates automagical behavior when using the 
+Nodes via L</get_one>. This facilitates automagical behavior when using the
 Filter within the XMPP protocol that requires many new stream initiations.
 This method is also called after every document when not in streaming mode.
 Useful for handling XMLRPC processing.
 
-This method really should never be called outside of the Filter, but it is 
+This method really should never be called outside of the Filter, but it is
 documented here in case the Filter is used outside of the POE context.
 
 =head1 PRIVATE_METHODS

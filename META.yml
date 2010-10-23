@@ -31,4 +31,4 @@ requires:
   constant: 0
 resources:
   repository: git://nickandperla.net/pfx.git
-version: 1.102800
+version: 1.102960

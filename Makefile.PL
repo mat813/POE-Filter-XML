@@ -38,7 +38,7 @@ my %WriteMakefileArgs = (
     'XML::SAX::Base' => '0',
     'constant' => '0'
   },
-  'VERSION' => '1.102800',
+  'VERSION' => '1.102960',
   'test' => {
     'TESTS' => 't/*.t'
   }
