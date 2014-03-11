@@ -1,4 +1,9 @@
-Revision history for POE-Filter-XML: 1.102960
+Revision history for POE-Filter-XML: 1.140700
+
+1.140700  2014-03-11 22:58:37 Europe/Amsterdam
+        Remove all bullshit related to MooseX::Declare
+        Fix annoying bug in toString picking up Moose attributes
+
 
 1.102960  2010-10-23 01:35:46 America/Chicago
         Fix issues with not_streaming

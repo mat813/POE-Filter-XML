@@ -4,43 +4,41 @@ use warnings;
 
 
 
-use ExtUtils::MakeMaker 6.31;
+use ExtUtils::MakeMaker 6.30;
 
 
 
 my %WriteMakefileArgs = (
-  'ABSTRACT' => 'XML parsing for the POE framework',
-  'AUTHOR' => 'Nicholas R. Perez <nperez@cpan.org>',
-  'BUILD_REQUIRES' => {
-    'Test::More' => '0'
+  "ABSTRACT" => "XML parsing for the POE framework",
+  "AUTHOR" => "Nicholas R. Perez <nperez\@cpan.org>",
+  "BUILD_REQUIRES" => {
+    "Test::More" => 0
   },
-  'CONFIGURE_REQUIRES' => {
-    'ExtUtils::MakeMaker' => '6.31'
+  "CONFIGURE_REQUIRES" => {
+    "ExtUtils::MakeMaker" => "6.30"
   },
-  'DISTNAME' => 'POE-Filter-XML',
-  'EXE_FILES' => [],
-  'LICENSE' => 'perl',
-  'NAME' => 'POE::Filter::XML',
-  'PREREQ_PM' => {
-    'Carp' => '0',
-    'Exporter' => '0',
-    'Moose::Object' => '0',
-    'Moose::Util::TypeConstraints' => '0',
-    'MooseX::Declare' => '0',
-    'MooseX::InsideOut' => '0',
-    'MooseX::NonMoose' => '0',
-    'MooseX::NonMoose::InsideOut' => '0',
-    'MooseX::Types::Moose' => '0',
-    'POE::Filter' => '0',
-    'Try::Tiny' => '0',
-    'XML::LibXML' => '0',
-    'XML::LibXML::Element' => '0',
-    'XML::SAX::Base' => '0',
-    'constant' => '0'
+  "DISTNAME" => "POE-Filter-XML",
+  "EXE_FILES" => [],
+  "LICENSE" => "perl",
+  "NAME" => "POE::Filter::XML",
+  "PREREQ_PM" => {
+    "Carp" => 0,
+    "Exporter" => 0,
+    "Moose" => 0,
+    "Moose::Object" => 0,
+    "MooseX::InsideOut" => 0,
+    "MooseX::NonMoose" => 0,
+    "POE::Filter" => 0,
+    "XML::LibXML" => 0,
+    "XML::LibXML::Element" => 0,
+    "XML::SAX::Base" => 0,
+    "constant" => 0,
+    "strict" => 0,
+    "warnings" => 0
   },
-  'VERSION' => '1.102960',
-  'test' => {
-    'TESTS' => 't/*.t'
+  "VERSION" => "1.140700",
+  "test" => {
+    "TESTS" => "t/*.t"
   }
 );
 

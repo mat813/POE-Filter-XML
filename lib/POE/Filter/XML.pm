@@ -1,222 +1,189 @@
 package POE::Filter::XML;
-BEGIN {
-  $POE::Filter::XML::VERSION = '1.102960';
+{
+  $POE::Filter::XML::VERSION = '1.140700';
 }
 
 #ABSTRACT: XML parsing for the POE framework
 
-use MooseX::Declare;
+use Moose;
+use MooseX::NonMoose;
 
 
-class POE::Filter::XML {
-    use MooseX::NonMoose;
-    extends 'Moose::Object','POE::Filter';
+extends 'Moose::Object','POE::Filter';
 
-    use Carp;
-    use Try::Tiny;
-    use XML::LibXML;
-    use POE::Filter::XML::Handler;
-    use Moose::Util::TypeConstraints;
-    use MooseX::Types::Moose(':all');
+use Carp;
+use XML::LibXML;
+use POE::Filter::XML::Handler;
 
 
-    has buffer =>
-    (
-        is => 'ro',
-        traits => [ 'Array' ],
-        isa => ArrayRef,
-        lazy => 1,
-        clearer => '_clear_buffer',
-        default => sub { [] },
-        handles =>
-        {
-            has_buffer => 'count',
-            all_buffer => 'elements',
-            push_buffer => 'push',
-            shift_buffer => 'shift',
-            join_buffer => 'join',
-        }
-    );
-
-
-    has callback =>
-    (
-        is => 'ro',
-        isa => CodeRef,
-        lazy => 1,
-        default => sub { Carp::confess('Parsing error happened: '. shift) },
-    );
-
-
-    has handler =>
-    (
-        is => 'ro',
-        isa => class_type('POE::Filter::XML::Handler'),
-        lazy => 1,
-        builder => '_build_handler',
-        handles =>
-        {
-            '_reset_handler' => 'reset',
-            'finished_nodes' => 'has_finished_nodes',
-            'get_node' => 'get_finished_node',
-        }
-    );
-
-
-    has parser =>
-    (
-        is => 'ro',
-        isa => class_type('XML::LibXML'),
-        lazy => 1,
-        builder => '_build_parser',
-        clearer => '_clear_parser'
-    );
-
-
-    has not_streaming =>
-    (
-        is => 'ro',
-        isa => Bool,
-        default => 0,
-    );
-
-    method _build_handler {
-        POE::Filter::XML::Handler->new(not_streaming => $self->not_streaming)
+has buffer =>
+(
+    is => 'ro',
+    traits => [ 'Array' ],
+    isa => 'ArrayRef',
+    lazy => 1,
+    clearer => '_clear_buffer',
+    default => sub { [] },
+    handles =>
+    {
+        has_buffer => 'count',
+        all_buffer => 'elements',
+        push_buffer => 'push',
+        shift_buffer => 'shift',
+        join_buffer => 'join',
     }
-
-    method _build_parser {
-        XML::LibXML->new(Handler => $self->handler)
-    }
+);
 
 
-    method BUILDARGS(ClassName $class: @args) returns (HashRef) {
+has callback =>
+(
+    is => 'ro',
+    isa => 'CodeRef',
+    lazy => 1,
+    default => sub { sub { Carp::confess('Parsing error happened: '. join("\n", @_)) } },
+);
 
-        my $config = {};
-        my @keys;
-        while($#args != -1)
+
+has handler =>
+(
+    is => 'ro',
+    isa => 'POE::Filter::XML::Handler',
+    lazy => 1,
+    builder => '_build_handler',
+);
+
+
+has parser =>
+(
+    is => 'ro',
+    isa => 'XML::LibXML',
+    lazy => 1,
+    builder => '_build_parser',
+    clearer => '_clear_parser'
+);
+
+
+has not_streaming =>
+(
+    is => 'ro',
+    isa => 'Bool',
+    default => 0,
+);
+
+sub _build_handler {
+    my ($self) = @_;
+    POE::Filter::XML::Handler->new(not_streaming => $self->not_streaming)
+}
+
+sub _build_parser {
+    my ($self) = @_;
+    XML::LibXML->new(Handler => $self->handler)
+}
+
+
+sub BUILD {
+    my ($self) = @_;
+    if($self->has_buffer)
+    {
+        eval
         {
-            my $key = shift(@args);
-            if($key =~ m/[A-Z]+/)
-            {
-                push(@keys, $key);
-                $key = lc($key);
-            }
-
-            my $val = shift(@args);
-            $config->{$key} = $val;
+            $self->parser->parse_chunk($self->join_buffer("\n"));
+            1;
         }
-
-        if(@keys)
+        or do
         {
-            Carp::cluck
-            (
-                q|ALL CAPS usage of parameters (| . join(' ', @keys) . q|)|.
-                q| to the constructor |.
-                q|is DEPRECATED. Please correct this usage soon. Next |.
-                q|version will NOT support these arguments|
-            );
-        }
-        return $config;
-    }
+            my $err = $@ || 'Zombie Error';
+            $self->callback->($err);
+        };
 
-
-    method BUILD {
-
-        if($self->has_buffer)
-        {
-            try
-            {
-                $self->parser->parse_chunk($self->join_buffer("\n"));
-
-            }
-            catch
-            {
-                $self->callback->($_);
-            }
-            finally
-            {
-                $self->_clear_buffer();
-            }
-        }
-    }
-
-
-    method reset {
-
-        $self->_reset_handler();
-        $self->_clear_parser();
         $self->_clear_buffer();
     }
+}
 
 
-    method get_one_start(ArrayRef $raw?) {
+sub reset {
 
-        if (defined $raw)
+    my ($self) = @_;
+    $self->handler->reset();
+    $self->_clear_parser();
+    $self->_clear_buffer();
+}
+
+
+sub get_one_start {
+
+    my ($self, $raw) = @_;
+
+    if (defined $raw)
+    {
+        foreach my $raw_data (@$raw)
         {
-            foreach my $raw_data (@$raw)
-            {
-                $self->push_buffer(split(/(?=\x0a?\x0d|\x0d\x0a?)/s, $raw_data));
-            }
+            $self->push_buffer(split(/(?=\x0a?\x0d|\x0d\x0a?)/s, $raw_data));
         }
-    }
-
-
-    method get_one returns (ArrayRef) {
-
-        if($self->finished_nodes())
-        {
-            return [$self->get_node()];
-
-        }
-        else
-        {
-            while($self->has_buffer())
-            {
-                my $line = $self->shift_buffer();
-
-                try
-                {
-                    $self->parser->parse_chunk($line);
-                }
-                catch
-                {
-                    $self->callback->($_);
-                };
-
-                if($self->finished_nodes())
-                {
-                    my $node = $self->get_node();
-
-                    if($node->stream_end() or $self->not_streaming)
-                    {
-                        $self->parser->parse_chunk('', 1);
-                        $self->reset();
-                    }
-
-                    return [$node];
-                }
-            }
-            return [];
-        }
-    }
-
-
-    method put(ArrayRef $nodes) returns (ArrayRef) {
-
-        my $output = [];
-
-        foreach my $node (@$nodes)
-        {
-            if($node->stream_start())
-            {
-                $self->reset();
-            }
-            push(@$output, $node->toString());
-        }
-
-        return $output;
     }
 }
+
+
+sub get_one {
+
+    my ($self) = @_;
+
+    if($self->handler->has_finished_nodes())
+    {
+        return [$self->handler->get_finished_node()];
+
+    }
+    else
+    {
+        while($self->has_buffer())
+        {
+            my $line = $self->shift_buffer();
+
+            eval
+            {
+                $self->parser->parse_chunk($line);
+                1;
+            }
+            or do
+            {
+                my $err = $@ || 'Zombie error';
+                $self->callback->($err);
+            };
+
+            if($self->handler->has_finished_nodes())
+            {
+                my $node = $self->handler->get_finished_node();
+
+                if($node->stream_end() or $self->not_streaming)
+                {
+                    $self->parser->parse_chunk('', 1);
+                    $self->reset();
+                }
+
+                return [$node];
+            }
+        }
+        return [];
+    }
+}
+
+
+sub put {
+    my ($self, $nodes) = @_;
+    my $output = [];
+
+    foreach my $node (@$nodes)
+    {
+        if($node->stream_start())
+        {
+            $self->reset();
+        }
+        push(@$output, $node->toString());
+    }
+
+    return $output;
+}
+
 1;
 
 
@@ -228,7 +195,7 @@ POE::Filter::XML - XML parsing for the POE framework
 
 =head1 VERSION
 
-version 1.102960
+version 1.140700
 
 =head1 SYNOPSIS
 
@@ -246,16 +213,6 @@ POE::Filter::XML provides POE with a completely encapsulated XML parsing
 strategy for POE::Wheels that will be dealing with XML streams.
 
 The parser is XML::LibXML
-
-=head1 CLASS_METHODS
-
-=head2 BUILDARGS
-
-    (ClassName $class: @args) returns (HashRef)
-
-BUILDARGS is provided to continue parsing the old style ALL CAPS arguments. If
-any ALL CAPS argument is detected, it will warn very loudly about deprecated
-usage.
 
 =head1 PUBLIC_ATTRIBUTES
 
@@ -355,20 +312,13 @@ documented here in case the Filter is used outside of the POE context.
 A BUILD method is provided to parse the initial buffer (if any was included
 when constructing the filter).
 
-=head1 NOTES
-
-This latest version got a major overhaul. Everything is Moose-ified using
-MooseX::Declare to provide more rigorous constraint checking, real accessors,
-and greatly simplified internals. It should be backwards compatible (even the
-constructor arguments). If not, please file a bug report with a test case.
-
 =head1 AUTHOR
 
 Nicholas R. Perez <nperez@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2010 by Nicholas R. Perez <nperez@cpan.org>.
+This software is copyright (c) 2014 by Nicholas R. Perez <nperez@cpan.org>.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

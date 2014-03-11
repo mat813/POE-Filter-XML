@@ -1,6 +1,6 @@
 package POE::Filter::XML::NS;
-BEGIN {
-  $POE::Filter::XML::NS::VERSION = '1.102960';
+{
+  $POE::Filter::XML::NS::VERSION = '1.140700';
 }
 
 #ABSTRACT: Provides constants that return appropriate namespace strings
@@ -79,7 +79,7 @@ POE::Filter::XML::NS - Provides constants that return appropriate namespace stri
 
 =head1 VERSION
 
-version 1.102960
+version 1.140700
 
 =head1 SYNOPSIS
 
@@ -118,7 +118,7 @@ Nicholas R. Perez <nperez@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2010 by Nicholas R. Perez <nperez@cpan.org>.
+This software is copyright (c) 2014 by Nicholas R. Perez <nperez@cpan.org>.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

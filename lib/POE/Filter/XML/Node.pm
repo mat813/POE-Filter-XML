@@ -1,158 +1,169 @@
 package POE::Filter::XML::Node;
-BEGIN {
-  $POE::Filter::XML::Node::VERSION = '1.102960';
+{
+  $POE::Filter::XML::Node::VERSION = '1.140700';
 }
 
 #ABSTRACT: A XML::LibXML::Element subclass that adds streaming semantics
 
-use MooseX::Declare;
+use Moose;
+use MooseX::NonMoose;
+use MooseX::InsideOut;
 
 
-class POE::Filter::XML::Node {
-    use MooseX::NonMoose::InsideOut;
-    extends 'XML::LibXML::Element';
+extends 'XML::LibXML::Element';
 
-    use XML::LibXML(':libxml');
-    use MooseX::Types::Moose(':all');
+use XML::LibXML(':libxml');
 
 
-    has stream_start => (is => 'ro', writer => '_set_stream_start', isa => Bool, default => 0);
-    has stream_end => (is => 'ro', writer => '_set_stream_end', isa => Bool, default => 0);
+has stream_start => (is => 'ro', writer => '_set_stream_start', isa => 'Bool', default => 0);
+has stream_end => (is => 'ro', writer => '_set_stream_end', isa => 'Bool', default => 0);
 
 
-    method BUILDARGS(ClassName $class: $name) {
+sub BUILDARGS {
+    my ($self, $name) = @_;
+    #only a name should be passed
+    return { name => $name };
+}
 
-        #only a name should be passed
-        return { name => $name };
-    }
 
-
-    override cloneNode(Bool $deep) {
-        
-        my $clone = super();
-        
-        bless($clone, $self->meta->name());
-        
-        $clone->_set_stream_start($self->stream_start());
-        $clone->_set_stream_end($self->stream_end());
-        
-        return $clone;
-    }
-
-    override getChildrenByTagName(Str $name) {
-
-        return (map { bless($_, $self->meta->name()) } @{ super() });
-    }
-
-    override getChildrenByTagNameNS(Str $nsURI, $localname) {
-
-        return (map { bless($_, $self->meta->name()) } @{ super() });
-    }
-
-    override getChildrenByLocalName(Str $localname) {
-        
-        return (map { bless($_, $self->meta->name()) } @{ super() });
-    }
+sub cloneNode {
     
-    override getElementsByTagName(Str $name) {
+    my ($self, $deep) = @_;
+    my $clone = $self->SUPER::cloneNode($deep);
+    
+    bless($clone, $self->meta->name());
+    
+    $clone->_set_stream_start($self->stream_start());
+    $clone->_set_stream_end($self->stream_end());
+    
+    return $clone;
+}
 
-        return (map { bless($_, $self->meta->name()) } @{ super() });
-    }
+sub getChildrenByTagName {
+    my ($self, $name) = @_;
+    my $CLASS = $self->meta->name();
+    return (map { bless($_, $CLASS) } @{ $self->SUPER::getChildrenByTagName($name) });
+}
 
-    override getElementsByTagNameNS(Str $nsURI, $localname) {
+sub getChildrenByTagNameNS {
+    my ($self, $nsURI, $localname) = @_;
+    my $CLASS = $self->meta->name();
+    return (map { bless($_, $CLASS) } @{ $self->SUPER::getChildrenByTagNameNS($nsURI, $localname) });
+}
 
-        return (map { bless($_, $self->meta->name()) } @{ super() });
-    }
+sub getChildrenByLocalName {
+    my ($self, $localname) = @_;
+    my $CLASS = $self->meta->name();
+    return (map { bless($_, $CLASS) } @{ $self->SUPER::getChildrenByLocalName($localname) });
+}
 
-    override getElementsByLocalName(Str $localname) {
-        
-        return (map { bless($_, $self->meta->name()) } @{ super() });
-    }
+sub getElementsByTagName {
+    my ($self, $name) = @_;
+    my $CLASS = $self->meta->name();
+    return (map { bless($_, $CLASS) } @{ $self->SUPER::getElementsByTagName($name) });
+}
+
+sub getElementsByTagNameNS {
+    my ($self, $nsURI, $localname) = @_;
+    my $CLASS = $self->meta->name();
+    return (map { bless($_, $CLASS) } @{ $self->SUPER::getElementsByTagNameNS($nsURI, $localname) });
+}
+
+sub getElementsByLocalName {
+    my ($self, $localname) = @_;
+    my $CLASS = $self->meta->name();
+    return (map { bless($_, $CLASS) } @{ $self->SUPER::getElementsByLocalName($localname) });
+}
     
 
-    override toString(Bool $formatted?) returns (Str) {
-
-        if($self->stream_start())
+sub toString {
+    my ($self, $formatted, $docencoding) = @_;
+    
+    $formatted = defined($formatted) ? $formatted : 0;
+    $docencoding = defined($docencoding) ? $docencoding : 0;
+    
+    if($self->stream_start())
+    {
+        my $string = '<';
+        $string .= $self->nodeName();
+        foreach my $attr ($self->attributes())
         {
-            my $string = '<';
-            $string .= $self->nodeName();
-            foreach my $attr ($self->attributes())
-            {
-                $string .= sprintf(' %s="%s"', $attr->nodeName(), $attr->value());
-            }
-            $string .= '>';
-            return $string;
+            $string .= sprintf(' %s="%s"', $attr->nodeName(), $attr->value());
         }
-        elsif ($self->stream_end())
+        $string .= '>';
+        return $string;
+    }
+    elsif ($self->stream_end())
+    {
+        return sprintf('</%s>', $self->nodeName()); 
+    }
+    else
+    {
+        return $self->SUPER::toString($formatted, $docencoding);
+    }
+}
+
+
+sub setAttributes {
+    my ($self, $array) = @_;
+    for(my $i = 0; $i < scalar(@$array); $i++)
+    {
+        if($array->[$i] eq 'xmlns')
         {
-            return sprintf('</%s>', $self->nodeName()); 
+            $self->setNamespace($array->[++$i], '', 0);
         }
         else
         {
-            return super();
+            $self->setAttribute($array->[$i], $array->[++$i]);
         }
-    }
-
-
-    method setAttributes(ArrayRef $array) {
-
-        for(my $i = 0; $i < scalar(@$array); $i++)
-        {
-            if($array->[$i] eq 'xmlns')
-            {
-                $self->setNamespace($array->[++$i], '', 0);
-            }
-            else
-            {
-                $self->setAttribute($array->[$i], $array->[++$i]);
-            }
-        }
-    }
-
-
-    method getAttributes() returns (HashRef) {
-
-        my $attributes = {};
-
-        foreach my $attrib ($self->attributes())
-        {
-            if($attrib->nodeType == XML_ATTRIBUTE_NODE)
-            {
-                $attributes->{$attrib->nodeName()} = $attrib->value();
-            }
-        }
-
-        return $attributes;
-    }
-
-
-    method getSingleChildByTagName(Str $name) returns (Maybe[POE::Filter::XML::Node]) {
-
-        my $node = ($self->getChildrenByTagName($name))[0];
-        return undef if not defined($node);
-        return $node;
-    }
-
-
-    method getChildrenHash() returns (HashRef) {
-
-        my $children = {};
-
-        foreach my $child ($self->getChildrenByTagName("*"))
-        {
-            my $name = $child->nodeName();
-            
-            if(!exists($children->{$name}))
-            {
-                $children->{$name} = [];
-            }
-            
-            push(@{$children->{$name}}, $child);
-        }
-
-        return $children;
     }
 }
+
+
+sub getAttributes {
+    my ($self) = @_;
+    my $attributes = {};
+
+    foreach my $attrib ($self->attributes())
+    {
+        if($attrib->nodeType == XML_ATTRIBUTE_NODE)
+        {
+            $attributes->{$attrib->nodeName()} = $attrib->value();
+        }
+    }
+
+    return $attributes;
+}
+
+
+sub getSingleChildByTagName {
+    my ($self, $name) = @_;
+    my $node = ($self->getChildrenByTagName($name))[0];
+    return undef if not defined($node);
+    return $node;
+}
+
+
+sub getChildrenHash {
+    my ($self) = @_;
+    my $children = {};
+
+    foreach my $child ($self->getChildrenByTagName("*"))
+    {
+        my $name = $child->nodeName();
+        
+        if(!exists($children->{$name}))
+        {
+            $children->{$name} = [];
+        }
+        
+        push(@{$children->{$name}}, $child);
+    }
+
+    return $children;
+}
+
+1;
 
 
 
@@ -164,7 +175,7 @@ POE::Filter::XML::Node - A XML::LibXML::Element subclass that adds streaming sem
 
 =head1 VERSION
 
-version 1.102960
+version 1.140700
 
 =head1 SYNOPSIS
 
@@ -280,7 +291,7 @@ Nicholas R. Perez <nperez@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2010 by Nicholas R. Perez <nperez@cpan.org>.
+This software is copyright (c) 2014 by Nicholas R. Perez <nperez@cpan.org>.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -1,180 +1,178 @@
 package POE::Filter::XML::Handler;
-BEGIN {
-  $POE::Filter::XML::Handler::VERSION = '1.102960';
+{
+  $POE::Filter::XML::Handler::VERSION = '1.140700';
 }
 
 #ABSTRACT: Default SAX Handler for POE::Filter::XML
 
-use MooseX::Declare;
+use Moose;
+use MooseX::NonMoose;
 
-class POE::Filter::XML::Handler {
-    use MooseX::NonMoose;
-    extends 'XML::SAX::Base';
+extends 'XML::SAX::Base';
 
-    use Moose::Util::TypeConstraints;
-    use MooseX::Types::Moose(':all');
-    use POE::Filter::XML::Node;
+use POE::Filter::XML::Node;
 
 
-    has current_node =>
-    (
-        is => 'rw',
-        isa => class_type('POE::Filter::XML::Node'),
-        predicate => '_has_current_node',
-        clearer => '_clear_current_node'
-    );
-
-    has finished_nodes =>
-    (
-        is => 'ro',
-        traits => ['Array'],
-        isa => ArrayRef,
-        default => sub { [] },
-        clearer => '_clear_finished_nodes',
-        handles =>
-        {
-            all_finished_nodes => 'elements',
-            has_finished_nodes => 'count',
-            add_finished_node => 'push',
-            get_finished_node => 'shift',
-        }
-    );
+has current_node =>
+(
+    is => 'rw',
+    isa => 'POE::Filter::XML::Node',
+    predicate => '_has_current_node',
+    clearer => '_clear_current_node'
+);
 
 
-    has depth_stack =>
-    (
-        is => 'ro',
-        traits => ['Array'],
-        isa => ArrayRef,
-        default => sub { [] },
-        clearer => '_clear_depth_stack',
-        handles =>
-        {
-            push_depth_stack => 'push',
-            pop_depth_stack => 'pop',
-            depth => 'count',
-        }
-    );
+has finished_nodes =>
+(
+    is => 'ro',
+    traits => ['Array'],
+    isa => 'ArrayRef',
+    default => sub { [] },
+    handles =>
+    {
+        all_finished_nodes => 'elements',
+        has_finished_nodes => 'count',
+        add_finished_node => 'push',
+        get_finished_node => 'shift',
+        _clear_finished_nodes => 'clear',
+    }
+);
 
 
-    has not_streaming => ( is => 'ro', isa => Bool, default => 0 );
+has depth_stack =>
+(
+    is => 'ro',
+    traits => ['Array'],
+    isa => 'ArrayRef',
+    default => sub { [] },
+    clearer => '_clear_depth_stack',
+    handles =>
+    {
+        push_depth_stack => 'push',
+        pop_depth_stack => 'pop',
+        depth => 'count',
+    }
+);
 
 
-    method reset {
+has not_streaming => ( is => 'ro', isa => 'Bool', default => 0 );
 
-        $self->_clear_current_node();
-        $self->_clear_finished_nodes();
-        $self->_clear_depth_stack();
+
+sub reset {
+    my ($self) = @_;
+    $self->_clear_current_node();
+    $self->_clear_finished_nodes();
+    $self->_clear_depth_stack();
+}
+
+
+sub start_element {
+    my ($self, $data) = @_;
+    my $node = POE::Filter::XML::Node->new($data->{'Name'});
+
+    foreach my $attrib (values %{$data->{'Attributes'}})
+    {
+        $node->setAttribute
+        (
+            $attrib->{'Name'},
+            $attrib->{'Value'}
+        );
     }
 
+    if($self->depth() == 0)
+    {
+        #start of a document
+        $self->push_depth_stack($node);
 
-
-    override start_element(HashRef $data) {
-
-        my $node = POE::Filter::XML::Node->new($data->{'Name'});
-
-        foreach my $attrib (values %{$data->{'Attributes'}})
+        if($self->not_streaming)
         {
-            $node->setAttribute
-            (
-                $attrib->{'Name'},
-                $attrib->{'Value'}
-            );
-        }
-
-
-        if($self->depth() == 0)
-        {
-            #start of a document
-            $self->push_depth_stack($node);
-
-            if($self->not_streaming)
-            {
-                $self->current_node($node);
-            }
-            else
-            {
-                $node->_set_stream_start(1);
-                $self->add_finished_node($node);
-            }
-
+            $self->current_node($node);
         }
         else
         {
-            # Top level fragment
-            $self->push_depth_stack($self->current_node);
+            $node->_set_stream_start(1);
+            $self->add_finished_node($node);
+        }
+    }
+    else
+    {
+        # Top level fragment
+        $self->push_depth_stack($self->current_node);
 
-            if($self->depth() == 2)
+        if($self->depth() == 2)
+        {
+            if($self->not_streaming)
             {
-                if($self->not_streaming)
-                {
-                    $self->current_node->appendChild($node);
-                }
-                $self->current_node($node);
-            }
-            else
-            {
-                # Some node within a fragment
                 $self->current_node->appendChild($node);
-                $self->current_node($node);
             }
-        }
-
-        super();
-    }
-
-
-    method end_element(HashRef $data) {
-
-        if($self->depth() == 1)
-        {
-            if($self->not_streaming)
-            {
-                $self->add_finished_node($self->pop_depth_stack());
-            }
-            else
-            {
-                my $end = POE::Filter::XML::Node->new($data->{'Name'});
-                $end->_set_stream_end(1);
-                $self->add_finished_node($end);
-            }
-
-        }
-        elsif($self->depth() == 2)
-        {
-            if($self->not_streaming)
-            {
-                $self->current_node($self->pop_depth_stack());
-            }
-            else
-            {
-                $self->add_finished_node($self->current_node);
-                $self->_clear_current_node();
-                $self->pop_depth_stack();
-            }
-
+            $self->current_node($node);
         }
         else
+        {
+            # Some node within a fragment
+            $self->current_node->appendChild($node);
+            $self->current_node($node);
+        }
+    }
+
+    $self->SUPER::start_element($data);
+}
+
+
+sub end_element {
+    
+    my ($self, $data) = @_;
+
+    if($self->depth() == 1)
+    {
+        if($self->not_streaming)
+        {
+            $self->add_finished_node($self->pop_depth_stack());
+        }
+        else
+        {
+            my $end = POE::Filter::XML::Node->new($data->{'Name'});
+            $end->_set_stream_end(1);
+            $self->add_finished_node($end);
+        }
+    }
+    elsif($self->depth() == 2)
+    {
+        if($self->not_streaming)
         {
             $self->current_node($self->pop_depth_stack());
         }
-
-        super();
-    }
-
-
-    override characters(HashRef $data) {
-
-        if($self->depth() == 1)
+        else
         {
-            return;
+            $self->add_finished_node($self->current_node);
+            $self->_clear_current_node();
+            $self->pop_depth_stack();
         }
-
-        $self->current_node->appendText($data->{'Data'});
-
-        super();
     }
+    else
+    {
+        $self->current_node($self->pop_depth_stack());
+    }
+
+    $self->SUPER::end_element($data);
 }
+
+
+sub characters {
+
+    my ($self, $data) = @_;
+
+    if($self->depth() == 1)
+    {
+        return;
+    }
+
+    $self->current_node->appendText($data->{'Data'});
+
+    $self->SUPER::characters($data);
+}
+
+1;
 
 
 
@@ -186,7 +184,7 @@ POE::Filter::XML::Handler - Default SAX Handler for POE::Filter::XML
 
 =head1 VERSION
 
-version 1.102960
+version 1.140700
 
 =head1 DESCRIPTION
 
@@ -289,7 +287,7 @@ Nicholas R. Perez <nperez@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2010 by Nicholas R. Perez <nperez@cpan.org>.
+This software is copyright (c) 2014 by Nicholas R. Perez <nperez@cpan.org>.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
