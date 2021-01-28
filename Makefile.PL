@@ -30,7 +30,6 @@ my %WriteMakefileArgs = (
     "MooseX::NonMoose" => 0,
     "POE::Filter" => 0,
     "XML::LibXML" => 0,
-    "XML::LibXML::Element" => 0,
     "XML::SAX::Base" => 0,
     "constant" => 0,
     "strict" => 0,
